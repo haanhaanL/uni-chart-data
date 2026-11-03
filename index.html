@@ -16,29 +16,16 @@
     h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
-    /* Tab 切换 */
-    .tab-bar {
-        display: flex; justify-content: center; gap: 10px; margin-bottom: 14px;
-    }
+    .tab-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; }
     .tab-btn {
-        border: 1px solid rgba(234,54,144,0.35);
-        background: white;
-        color: #ea3690;
-        font-size: 15px;
-        font-weight: bold;
-        padding: 8px 26px;
-        border-radius: 20px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        outline: none;
+        border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
+        font-size: 15px; font-weight: bold; padding: 8px 26px; border-radius: 20px;
+        cursor: pointer; transition: all 0.2s ease; outline: none;
     }
     .tab-btn.active {
-        background: #ea3690;
-        color: white;
-        border-color: #ea3690;
+        background: #ea3690; color: white; border-color: #ea3690;
         box-shadow: 0 3px 10px rgba(234,54,144,0.25);
     }
-
     .tab-panel { display: none; width: 100%; }
     .tab-panel.active { display: block; }
 
@@ -52,8 +39,7 @@
     }
     .title { text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 8px 0; }
     .chart-legend-text {
-        text-align: center; font-size: 12px; color: #666;
-        margin: 0 8px 6px 8px; line-height: 1.8;
+        text-align: center; font-size: 12px; color: #666; margin: 0 8px 6px 8px; line-height: 1.8;
     }
     .chart-legend-text .item { display: inline-block; margin: 0 5px; }
     .chart-legend-text .dot {
@@ -72,7 +58,6 @@
     <div id="loading">正在加载数据...</div>
 
     <div id="content" style="display:none;">
-        <!-- Tab 按钮 -->
         <div class="tab-bar">
             <button class="tab-btn active" data-tab="daily">📅 日榜</button>
             <button class="tab-btn" data-tab="weekly">📆 周榜</button>
@@ -153,7 +138,6 @@
 </div>
 
 <script>
-// 三条线颜色：粉 / 紫 / 橙
 const lineColors = ['#ea3690', '#7c3aed', '#e74c3c'];
 
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
@@ -263,52 +247,57 @@ function renderChart(rows, chartInst, legendId, field, yName) {
     }, true);
 }
 
-Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
-    download: true,
-    header: true,
-    skipEmptyLines: true,
-    encoding: 'UTF-8',
-    complete: function(results) {
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('content').style.display = 'block';
+function loadCsv(url) {
+    return new Promise((resolve) => {
+        Papa.parse(url + '?t=' + new Date().getTime(), {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            complete: (res) => resolve(res.data || []),
+            error: (err) => {
+                console.error('加载失败', url, err);
+                resolve([]);
+            }
+        });
+    });
+}
 
-        const data = results.data || [];
-        const dailyRows = data.filter(r => r['榜单类型'] === '日榜');
-        const weeklyRows = data.filter(r => r['榜单类型'] === '周榜');
+(async function init() {
+    const [dailyRows, weeklyRows] = await Promise.all([
+        loadCsv('uni_chart_daily.csv'),
+        loadCsv('uni_chart_weekly.csv'),
+    ]);
 
-        // 日榜
-        renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', '得分');
-        renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度', '播放热度');
-        renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度', '畅销度');
-        renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度', '推荐度');
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
 
-        // 周榜
-        renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', '得分');
-        renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度', '播放热度');
-        renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度', '畅销度');
-        renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度', '推荐度');
+    // 日榜
+    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', '得分');
+    renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度', '播放热度');
+    renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度', '畅销度');
+    renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度', '推荐度');
 
-        allCharts.forEach(c => c.resize());
+    // 周榜
+    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', '得分');
+    renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度', '播放热度');
+    renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度', '畅销度');
+    renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度', '推荐度');
 
-        const allTimes = data.map(r => r['时间']).filter(Boolean).sort();
-        if (allTimes.length) {
-            document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
-        }
-    },
-    error: function(err) {
-        document.getElementById('loading').innerText = '加载 uni_chart_data.csv 失败，请确认文件在同目录下。';
-        console.error(err);
+    allCharts.forEach(c => c.resize());
+
+    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
     }
-});
+})();
 
-// Tab 切换
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
         this.classList.add('active');
         document.getElementById('panel-' + this.dataset.tab).classList.add('active');
-        // 切换后重算尺寸，避免隐藏时初始化宽度为 0
         allCharts.forEach(c => c.resize());
     });
 });
