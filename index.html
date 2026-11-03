@@ -16,7 +16,7 @@
     h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
-    .tab-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; }
+    .tab-bar { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
     .tab-btn {
         border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
         font-size: 15px; font-weight: bold; padding: 8px 26px; border-radius: 20px;
@@ -29,16 +29,20 @@
     .tab-panel { display: none; width: 100%; }
     .tab-panel.active { display: block; }
 
-    .charts-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
-    .chart-col-3 { flex: 1 1 320px; min-width: 0; }
+    /* 所有行统一间距：左右 gap 与上下 margin 都是 12px */
+    .charts-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: stretch;
+    }
+    .charts-row:last-child { margin-bottom: 0; }
 
-    /* 得分行：左表格 + 右图表，等高等宽 */
     .score-row {
-        display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px;
-        align-items: stretch;
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: stretch;
     }
     .score-table-col { flex: 1 1 0; min-width: 0; display: flex; }
     .score-chart-col { flex: 1 1 0; min-width: 0; display: flex; }
+    .chart-col-3 { flex: 1 1 320px; min-width: 0; display: flex; }
 
     .card {
         background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -54,20 +58,18 @@
         display: inline-block; width: 8px; height: 8px; border-radius: 50%;
         margin-right: 4px; vertical-align: middle;
     }
-    .chart-wrapper { width: 100%; height: 350px; }
-    .chart-wrapper-sm { width: 100%; height: 300px; }
 
-    /* 得分卡片：等高 + 内容填满 */
-    .score-table-col .card { height: 100%; }
-    .score-table-col .table-scroll-box {
-        flex: 1 1 auto; overflow-y: auto; overflow-x: auto; min-height: 0;
-    }
-    .score-chart-col .card { height: 100%; }
-    .score-chart-col .chart-wrapper {
+    /* 所有图表容器统一高度，卡片等高 */
+    .chart-wrapper, .chart-wrapper-sm {
         flex: 1 1 auto; min-height: 0; height: auto; position: relative;
     }
-    .score-chart-col .chart-wrapper > div {
+    .chart-wrapper > div, .chart-wrapper-sm > div {
         position: absolute !important; inset: 0;
+    }
+
+    /* 表格卡片：等高 + 内部滚动 */
+    .score-table-col .table-scroll-box {
+        flex: 1 1 auto; overflow-y: auto; overflow-x: auto; min-height: 0;
     }
 
     /* 最近10条表格 */
@@ -77,7 +79,6 @@
     .recent-table th, .recent-table td {
         padding: 6px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
     }
-    /* 表头颜色统一 */
     .recent-table th {
         background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold; font-size: 11px;
         position: sticky; top: 0;
@@ -105,8 +106,8 @@
 
     <div id="content" style="display:none;">
         <div class="tab-bar">
-            <button class="tab-btn active" data-tab="weekly">📆 周榜</button>
-            <button class="tab-btn" data-tab="daily">📅 日榜</button>
+            <button class="tab-btn active" data-tab="weekly">周榜</button>
+            <button class="tab-btn" data-tab="daily">日榜</button>
         </div>
 
         <!-- 周榜面板 -->
@@ -242,13 +243,442 @@ function colorClass(v) {
     return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
 }
 
-// 时间去掉年份：2026/11/03 10:15 -> 11/03 10:15
 function formatShortTime(t) {
     if (!t) return '';
     return t.replace(/^\d{4}\//, '');
 }
 
-// 最近 10 条表格
+function renderRecentTable(rows, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+    const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
+    const recent = sorted.slice(0, 10);
+    tbody.innerHTML = recent.map(r => {
+        const cells = [`<td>${formatShortTime(r['时间'])}</td>`];
+        for (let i = 1; i <= 3; i++) {
+            const score = r[`第${i}名得分`] || '';
+            const change = r[`第${i}名官方增幅`] || '';
+            cells.push(`<td class="val-score">${score}</td>`);
+            cells.push(`<td class="${colorClass(change)}">${change}</td>`);
+        }
+        return `<tr>${cells.join('')}</tr>`;
+    }).join('');
+}
+
+function renderChart(rows, chartInst, legendId, field) {
+    const legendEl = document.getElementById(legendId);
+    if (!rows.length) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
+    const sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    const times = sorted.map(r => {
+        const t = r['时间'] || '';
+        const p = t.split(' ');
+        return p.length > 1 ? p[1] : t;
+    });
+    const latest = sorted[sorted.length - 1];
+
+    function legendText(rank) {
+        const name = latest[`第${rank}名歌名`] || '';
+        const singer = latest[`第${rank}名歌手`] || '';
+        if (!name) return `第${rank}名`;
+        return singer ? `${singer} - ${name}` : name;
+    }
+
+    function seriesData(rank) {
+        return sorted.map(r => {
+            const s = r[`第${rank}名${field}`] || '';
+            return s === '' ? null : parseFloat(s);
+        });
+    }
+
+    const series = [1, 2, 3].map((rank, idx) => ({
+        name: `第${rank}名`,
+        type: 'line',
+        data: seriesData(rank),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 3,
+        connectNulls: false,
+        itemStyle: { color: lineColors[idx] },
+        lineStyle: { width: 2, color: lineColors[idx] },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        const marks = ['①', '②', '③'];
+        legendEl.innerHTML = [1, 2, 3].map((rank, idx) =>
+            `<span class="item"><span class="dot" style="background:${lineColors[idx]}"></span>${marks[idx]}${legendText(rank)}</span>`
+        ).join('');
+    }
+
+    chartInst.hideLoading();
+    chartInst.setOption({
+        color: lineColors,
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[i]['时间']}</div>`;
+                params.forEach(p => {
+                    const rank = p.seriesIndex + 1;
+                    const name = sorted[i][`第${rank}名歌名`] || '';
+                    const singer = sorted[i][`第${rank}名歌手`] || '';
+                    const val = sorted[i][`第${rank}名${field}`] || '';
+                    html += `<div>${p.marker} 第${rank}名：${singer ? singer + ' - ' : ''}${name} <b>${val}</b></div>`;
+                });
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: { interval: 'auto', fontSize: 10, color: '#888', rotate: 45 },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            scale: true,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: series,
+    }, true);
+}
+
+function loadCsv(url) {
+    return new Promise((resolve) => {
+        Papa.parse(url + '?t=' + new Date().getTime(), {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            complete: (res) => resolve(res.data || []),
+            error: (err) => {
+                console.error('加载失败', url, err);
+                resolve([]);
+            }
+        });
+    });
+}
+
+(async function init() {
+    const [dailyRows, weeklyRows] = await Promise.all([
+        loadCsv('uni_chart_daily.csv'),
+        loadCsv('uni_chart_weekly.csv'),
+    ]);
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    // 日榜
+    renderRecentTable(dailyRows, 'dailyTableBody');
+    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分');
+    renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度');
+    renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度');
+    renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度');
+
+    // 周榜
+    renderRecentTable(weeklyRows, 'weeklyTableBody');
+    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分');
+    renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度');
+    renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度');
+    renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度');
+
+    allCharts.forEach(c => c.resize());
+    setTimeout(() => {
+        allCharts.forEach(c => c.resize());
+    }, 50);
+
+    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+    }
+})();
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+        allCharts.forEach(c => c.resize());
+    });
+});
+
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        allCharts.forEach(c => c.resize());
+    }, 200);
+});
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>腾讯音乐由你榜 · 前三追踪</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+    body {
+        margin: 0; padding: 8px; background-color: #faf7f9;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
+    }
+    .container { width: 100%; max-width: 1600px; }
+    h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
+    .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
+
+    .tab-bar { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+    .tab-btn {
+        border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
+        font-size: 15px; font-weight: bold; padding: 8px 26px; border-radius: 20px;
+        cursor: pointer; transition: all 0.2s ease; outline: none;
+    }
+    .tab-btn.active {
+        background: #ea3690; color: white; border-color: #ea3690;
+        box-shadow: 0 3px 10px rgba(234,54,144,0.25);
+    }
+    .tab-panel { display: none; width: 100%; }
+    .tab-panel.active { display: block; }
+
+    /* 所有行统一间距：左右 gap 与上下 margin 都是 12px */
+    .charts-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: stretch;
+    }
+    .charts-row:last-child { margin-bottom: 0; }
+
+    .score-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: stretch;
+    }
+    .score-table-col { flex: 1 1 0; min-width: 0; display: flex; }
+    .score-chart-col { flex: 1 1 0; min-width: 0; display: flex; }
+    .chart-col-3 { flex: 1 1 320px; min-width: 0; display: flex; }
+
+    .card {
+        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
+        padding: 12px 0; overflow: hidden; border: 1px solid rgba(234,54,144,0.10);
+        display: flex; flex-direction: column; width: 100%;
+    }
+    .title { text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 8px 0; }
+    .chart-legend-text {
+        text-align: center; font-size: 12px; color: #666; margin: 0 8px 6px 8px; line-height: 1.8;
+    }
+    .chart-legend-text .item { display: inline-block; margin: 0 5px; }
+    .chart-legend-text .dot {
+        display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+        margin-right: 4px; vertical-align: middle;
+    }
+
+    /* 所有图表容器统一高度，卡片等高 */
+    .chart-wrapper, .chart-wrapper-sm {
+        flex: 1 1 auto; min-height: 0; height: auto; position: relative;
+    }
+    .chart-wrapper > div, .chart-wrapper-sm > div {
+        position: absolute !important; inset: 0;
+    }
+
+    /* 表格卡片：等高 + 内部滚动 */
+    .score-table-col .table-scroll-box {
+        flex: 1 1 auto; overflow-y: auto; overflow-x: auto; min-height: 0;
+    }
+
+    /* 最近10条表格 */
+    .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll-box::-webkit-scrollbar { display: none; }
+    .recent-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
+    .recent-table th, .recent-table td {
+        padding: 6px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
+    }
+    .recent-table th {
+        background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold; font-size: 11px;
+        position: sticky; top: 0;
+    }
+    .recent-table td:first-child, .recent-table th:first-child {
+        text-align: left; padding-left: 8px; color: #666;
+        position: sticky; left: 0; background: white; z-index: 1;
+    }
+    .recent-table th:first-child {
+        background: rgba(234,54,144,0.10); color: #ea3690; z-index: 2;
+    }
+    .recent-table tr:nth-child(even) td:first-child { background: #fdf8fb; }
+    .val-score { font-weight: bold; color: #333; }
+    .up { color: #e74c3c; font-weight: bold; }
+    .down { color: #27ae60; font-weight: bold; }
+
+    #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>腾讯音乐由你榜 · 前三追踪</h1>
+    <div class="update-time" id="updateTime"></div>
+    <div id="loading">正在加载数据...</div>
+
+    <div id="content" style="display:none;">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="weekly">周榜</button>
+            <button class="tab-btn" data-tab="daily">日榜</button>
+        </div>
+
+        <!-- 周榜面板 -->
+        <div class="tab-panel active" id="panel-weekly">
+            <div class="score-row">
+                <div class="score-table-col">
+                    <div class="card">
+                        <div class="title">周榜 · 最近10条</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>1名得分</th><th>1名增幅</th>
+                                        <th>2名得分</th><th>2名增幅</th>
+                                        <th>3名得分</th><th>3名增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-chart-col">
+                    <div class="card">
+                        <div class="title">周榜前三得分趋势</div>
+                        <div class="chart-legend-text" id="weeklyLegend"></div>
+                        <div class="chart-wrapper" id="chartWeekly"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · 播放热度</div>
+                        <div class="chart-legend-text" id="weeklyPlayLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartWeeklyPlay"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · 畅销度</div>
+                        <div class="chart-legend-text" id="weeklySalesLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartWeeklySales"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · 推荐度</div>
+                        <div class="chart-legend-text" id="weeklyRecommendLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartWeeklyRecommend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日榜面板 -->
+        <div class="tab-panel" id="panel-daily">
+            <div class="score-row">
+                <div class="score-table-col">
+                    <div class="card">
+                        <div class="title">日榜 · 最近10条</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>1名得分</th><th>1名增幅</th>
+                                        <th>2名得分</th><th>2名增幅</th>
+                                        <th>3名得分</th><th>3名增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-chart-col">
+                    <div class="card">
+                        <div class="title">日榜前三得分趋势</div>
+                        <div class="chart-legend-text" id="dailyLegend"></div>
+                        <div class="chart-wrapper" id="chartDaily"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · 播放热度</div>
+                        <div class="chart-legend-text" id="dailyPlayLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartDailyPlay"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · 畅销度</div>
+                        <div class="chart-legend-text" id="dailySalesLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartDailySales"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · 推荐度</div>
+                        <div class="chart-legend-text" id="dailyRecommendLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartDailyRecommend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const lineColors = ['#ea3690', '#7c3aed', '#e74c3c'];
+
+const chartDaily = echarts.init(document.getElementById('chartDaily'));
+const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
+const chartDailyPlay = echarts.init(document.getElementById('chartDailyPlay'));
+const chartDailySales = echarts.init(document.getElementById('chartDailySales'));
+const chartDailyRecommend = echarts.init(document.getElementById('chartDailyRecommend'));
+const chartWeeklyPlay = echarts.init(document.getElementById('chartWeeklyPlay'));
+const chartWeeklySales = echarts.init(document.getElementById('chartWeeklySales'));
+const chartWeeklyRecommend = echarts.init(document.getElementById('chartWeeklyRecommend'));
+
+const allCharts = [chartDaily, chartWeekly, chartDailyPlay, chartDailySales,
+                   chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend];
+allCharts.forEach(c => c.showLoading());
+
+function colorClass(v) {
+    if (v === undefined || v === null || v === '') return '';
+    const fv = parseFloat(v);
+    if (isNaN(fv)) return '';
+    return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
+}
+
+function formatShortTime(t) {
+    if (!t) return '';
+    return t.replace(/^\d{4}\//, '');
+}
+
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
