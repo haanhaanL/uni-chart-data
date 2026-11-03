@@ -607,7 +607,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
                 if (r) {
                     params.forEach(p => {
                         if (p.value === null || p.value === undefined) return;
-            
+
                         let deltaRaw = '';
                         for (let rank = 1; rank <= 3; rank++) {
                             if (songKey(r, rank) === p.seriesName) {
@@ -615,7 +615,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
                                 break;
                             }
                         }
-            
+
                         let text = '';
                         let color = '#999';
                         if (deltaRaw !== '') {
@@ -623,11 +623,12 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
                             text = (fv > 0 ? '+' : '') + deltaRaw;
                             color = fv > 0 ? '#ea3690' : '#999';
                         }
-            
-                        html += `<div style="display:flex;align-items:center;gap:10px;min-width:220px;">`
+
+                        // 缩小的行距与列宽：gap 6px，分值/增幅列 56px，行最小宽 180px
+                        html += `<div style="display:flex;align-items:center;gap:6px;min-width:180px;">`
                               + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
-                              + `<span style="width:70px;text-align:right;white-space:nowrap;">${p.value}</span>`
-                              + `<span style="width:70px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
+                              + `<span style="width:56px;text-align:right;white-space:nowrap;">${p.value}</span>`
+                              + `<span style="width:56px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
                               + `</div>`;
                     });
                 }
