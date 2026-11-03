@@ -1,6 +1,7 @@
 import asyncio
 import csv
 import os
+import re
 from datetime import datetime, timedelta, timezone
 from playwright.async_api import async_playwright
 
@@ -13,12 +14,12 @@ HTML_FILE = os.path.join(BASE_DIR, "index.html")
 
 BJT = timezone(timedelta(hours=8))
 
-# 表头：多了“榜单类型”列
+# 表头：每名占 4 列（歌名、得分、官方增幅、自算差值）
 HEADER = [
     "时间", "榜单类型",
-    "第1名歌名", "第1名得分", "第1名差值",
-    "第2名歌名", "第2名得分", "第2名差值",
-    "第3名歌名", "第3名得分", "第3名差值",
+    "第1名歌名", "第1名得分", "第1名官方增幅", "第1名自算差值",
+    "第2名歌名", "第2名得分", "第2名官方增幅", "第2名自算差值",
+    "第3名歌名", "第3名得分", "第3名官方增幅", "第3名自算差值",
 ]
 
 
@@ -34,20 +35,45 @@ async def scrape_top3(page, chart_type):
             else route.continue_(),
         )
         await page.goto(URL_UNI_CHART, wait_until="domcontentloaded", timeout=20000)
-        await page.wait_for_selector(".chart-list-item, .rank-item", timeout=10000)
+
+        # 等歌名元素出现，说明榜单已渲染
+        await page.wait_for_selector('[class*="songItem_trackName"]', timeout=15000)
 
         if chart_type == "daily":
-            await page.click("text=日榜")   # 选择器需按真实 DOM 调整
-            await page.wait_for_timeout(1500)
+            # 日榜切换按钮：按文字“日榜”点击；默认已是日榜时失败也不影响
+            try:
+                await page.click("text=日榜", timeout=5000)
+                await page.wait_for_timeout(2000)
+                await page.wait_for_selector('[class*="songItem_trackName"]', timeout=15000)
+            except Exception as e:
+                print(f"[scrape_top3:daily] 切换日榜失败（可能默认已是日榜）: {e}")
 
-        items = await page.locator(".chart-list-item").all()   # 选择器需按真实 DOM 调整
-        for item in items[:3]:
-            name = await item.locator(".song-name").inner_text()   # 需调整
-            score_text = await item.locator(".score").inner_text()  # 需调整
-            score = float(score_text.strip().split()[0])
-            top3.append({"name": name.strip(), "score": score})
+        name_locators = page.locator('[class*="songItem_trackName"]')
+        score_locators = page.locator('[class*="songItem_uniIndex"]')
+        change_locators = page.locator('[class*="songItem_uniChange"]')
+
+        count = min(3, await name_locators.count(), await score_locators.count())
+        for i in range(count):
+            name = (await name_locators.nth(i).inner_text()).strip()
+            score_text = (await score_locators.nth(i).inner_text()).strip()
+            m = re.search(r"\d+(?:\.\d+)?", score_text)
+            score = float(m.group()) if m else None
+
+            # 官方增幅，如 "+0.02" / "-0.01"
+            page_change = ""
+            if i < await change_locators.count():
+                change_text = (await change_locators.nth(i).inner_text()).strip()
+                cm = re.search(r"[+-]?\d+(?:\.\d+)?", change_text)
+                if cm:
+                    page_change = cm.group()
+
+            if name and score is not None:
+                top3.append({"name": name, "score": score, "page_change": page_change})
+
     except Exception as e:
         print(f"[scrape_top3:{chart_type}] 抓取失败: {e}")
+
+    print(f"[scrape_top3:{chart_type}] 抓到 {len(top3)} 条: {top3}")
     return top3
 
 
@@ -75,30 +101,52 @@ def build_row(chart_type, top3, prev_row):
     row = [now_str, chart_type]
     for i in range(3):
         if i < len(top3):
-            name, score = top3[i]["name"], top3[i]["score"]
+            name = top3[i]["name"]
+            score = top3[i]["score"]
+            page_change = top3[i].get("page_change", "")
         else:
-            name, score = "", ""
+            name, score, page_change = "", "", ""
+
         delta = ""
         if prev_row and name and score != "":
             try:
-                prev_name = prev_row[2 + i * 3]
-                prev_score = prev_row[3 + i * 3]
+                prev_name = prev_row[2 + i * 4]
+                prev_score = prev_row[3 + i * 4]
                 if prev_name == name and prev_score != "":
                     delta = round(score - float(prev_score), 2)
             except (IndexError, ValueError):
                 pass
-        row.extend([name, score if score != "" else "", delta])
+
+        row.extend([name, score if score != "" else "", page_change, delta])
     return row
 
 
 def append_rows(rows_to_add):
+    """追加写入，跳过与最后一条同类型记录时间戳完全相同的行"""
+    _, data_rows = load_all_rows()
+    last_by_type = {}
+    for r in data_rows:
+        if len(r) > 1:
+            last_by_type[r[1]] = r
+
+    filtered = []
+    for r in rows_to_add:
+        last = last_by_type.get(r[1])
+        if last and last[0] == r[0]:
+            print(f"⏭️ 跳过重复记录 [{r[1]}] {r[0]}")
+            continue
+        filtered.append(r)
+
+    if not filtered:
+        return
+
     file_exists = os.path.exists(CSV_FILE)
     with open(CSV_FILE, "a", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
             writer.writerow(HEADER)
-        writer.writerows(rows_to_add)
-    for r in rows_to_add:
+        writer.writerows(filtered)
+    for r in filtered:
         print(f"✅ 写入 [{r[1]}] {r[0]}")
 
 
@@ -110,31 +158,35 @@ def generate_html():
     daily_rows = [r for r in data_rows if len(r) > 1 and r[1] == "日榜"]
     weekly_rows = [r for r in data_rows if len(r) > 1 and r[1] == "周榜"]
 
-    # 表格列：时间 + 3名 × (歌名/得分/差值)
     table_header = ["时间"]
     for n in ("1", "2", "3"):
-        table_header += [f"第{n}名", f"{n}名得分", f"{n}名差值"]
+        table_header += [f"第{n}名", f"{n}名得分", f"{n}名官方增幅", f"{n}名自算差值"]
 
     def render_table(rows, title):
         html = [f'<h2>{title}</h2>', '<table>',
                 '<thead><tr>' + ''.join(f'<th>{h}</th>' for h in table_header) + '</tr></thead>',
                 '<tbody>']
-        # 最新的在最上面
         for r in reversed(rows):
             cells = [f'<td>{r[0]}</td>']
             for i in range(3):
-                name = r[2 + i * 3] if len(r) > 2 + i * 3 else ""
-                score = r[3 + i * 3] if len(r) > 3 + i * 3 else ""
-                delta = r[4 + i * 3] if len(r) > 4 + i * 3 else ""
-                delta_class = ""
-                if delta != "":
+                name = r[2 + i * 4] if len(r) > 2 + i * 4 else ""
+                score = r[3 + i * 4] if len(r) > 3 + i * 4 else ""
+                page_change = r[4 + i * 4] if len(r) > 4 + i * 4 else ""
+                delta = r[5 + i * 4] if len(r) > 5 + i * 4 else ""
+
+                def color_class(v):
+                    if v == "":
+                        return ""
                     try:
-                        delta_class = "up" if float(delta) > 0 else ("down" if float(delta) < 0 else "")
+                        fv = float(v)
+                        return "up" if fv > 0 else ("down" if fv < 0 else "")
                     except ValueError:
-                        pass
+                        return ""
+
                 cells.append(f'<td>{name}</td>')
                 cells.append(f'<td>{score}</td>')
-                cells.append(f'<td class="{delta_class}">{delta}</td>')
+                cells.append(f'<td class="{color_class(page_change)}">{page_change}</td>')
+                cells.append(f'<td class="{color_class(delta)}">{delta}</td>')
             html.append('<tr>' + ''.join(cells) + '</tr>')
         html.append('</tbody></table>')
         return "\n".join(html)
@@ -198,7 +250,7 @@ async def run_once():
 
 
 async def main():
-    print("开始执行由你榜抓取（单 CSV + HTML 双表）...")
+    print("开始执行由你榜抓取（15分钟粒度，单 CSV + HTML 双表）...")
     try:
         await run_once()
         print("任务完成。")
