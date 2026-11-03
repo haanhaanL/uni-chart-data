@@ -34,7 +34,6 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表，宽度 2:1，各自固定 440 高 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: flex-start;
@@ -66,12 +65,12 @@
     .chart-wrapper { width: 100%; height: 300px; }
 
     .score-table-col .card {
-        height: 440px;
+        height: 520px;
         display: flex; flex-direction: column;
         overflow: hidden;
     }
     .score-chart-col .card {
-        height: 440px;
+        height: 520px;
         display: flex; flex-direction: column;
     }
     .chart-wrapper-flex {
@@ -321,7 +320,7 @@ function renderRecentTable(rows, tbodyId) {
             const song = singer ? `${name}-${singer}` : name;
             const score = r[`第${i}名得分`] || '';
             const change = r[`第${i}名官方增幅`] || '';
-            const changeText = change === '' ? '' : '+' + change;  // 统一加 +，不判断
+            const changeText = change === '' ? '' : '+' + change;
             const cls = colorClass(change);
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
             cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
@@ -341,7 +340,47 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         return;
     }
 
-    const sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    // 1) 先按时间升序
+    let sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+
+    // 2) 只保留最近 24 小时
+    const parseTime = (s) => {
+        const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+        if (!m) return null;
+        return new Date(
+            parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]),
+            m[4] ? parseInt(m[4]) : 0,
+            m[5] ? parseInt(m[5]) : 0,
+            m[6] ? parseInt(m[6]) : 0
+        );
+    };
+    if (sorted.length) {
+        const latestTime = parseTime(sorted[sorted.length - 1]['时间']);
+        if (latestTime) {
+            const cutoff = latestTime.getTime() - 24 * 60 * 60 * 1000;
+            sorted = sorted.filter(r => {
+                const t = parseTime(r['时间']);
+                return t && t.getTime() >= cutoff;
+            });
+        }
+    }
+
+    // 3) 只保留每小时 06 分的数据点
+    sorted = sorted.filter(r => {
+        const s = r['时间'] || '';
+        const m = s.match(/(?:^|[ T])\d{1,2}:(\d{2})/);
+        return m && m[1] === '06';
+    });
+
+    if (!sorted.length) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
     const times = sorted.map(r => {
         const t = r['时间'] || '';
         const p = t.split(' ');
