@@ -34,7 +34,6 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表，宽度 1:1，等高拉伸 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: stretch;
@@ -66,7 +65,6 @@
     .chart-wrapper { width: 100%; height: 350px; }
     .chart-wrapper-sm { width: 100%; height: 300px; }
 
-    /* --- 表格区域：等高、统一表头颜色、时间去年份、双数行底色 --- */
     .score-table-col .card {
         display: flex; flex-direction: column; flex: 1 1 auto;
     }
@@ -104,6 +102,14 @@
     .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
     }
+    /* 歌名-歌手列：过长省略 */
+    .recent-table .song-cell {
+        max-width: 130px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+    }
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
     .flat, .down { color: #999; font-weight: bold; }
@@ -131,12 +137,23 @@
                         <div class="title">周榜 · 最近10条</div>
                         <div class="table-scroll-box">
                             <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
                                 <thead>
                                     <tr>
-                                        <th>时间</th>
-                                        <th>①得分</th><th>①增幅</th>
-                                        <th>②得分</th><th>②增幅</th>
-                                        <th>③得分</th><th>③增幅</th>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">①</th>
+                                        <th colspan="2">②</th>
+                                        <th colspan="2">③</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>得分/增幅</th>
+                                        <th>歌名-歌手</th><th>得分/增幅</th>
+                                        <th>歌名-歌手</th><th>得分/增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="weeklyTableBody"></tbody>
@@ -185,12 +202,23 @@
                         <div class="title">日榜 · 最近10条</div>
                         <div class="table-scroll-box">
                             <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
                                 <thead>
                                     <tr>
-                                        <th>时间</th>
-                                        <th>①得分</th><th>①增幅</th>
-                                        <th>②得分</th><th>②增幅</th>
-                                        <th>③得分</th><th>③增幅</th>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">①</th>
+                                        <th colspan="2">②</th>
+                                        <th colspan="2">③</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>得分/增幅</th>
+                                        <th>歌名-歌手</th><th>得分/增幅</th>
+                                        <th>歌名-歌手</th><th>得分/增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="dailyTableBody"></tbody>
@@ -261,6 +289,7 @@ function stripYear(timeStr) {
     return timeStr.replace(/^\d{4}[-/]/, '');
 }
 
+// 最近 10 条表格（方案二：歌名-歌手 + 得分/增幅）
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -273,10 +302,14 @@ function renderRecentTable(rows, tbodyId) {
         const displayTime = stripYear(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
         for (let i = 1; i <= 3; i++) {
+            const name = r[`第${i}名歌名`] || '';
+            const singer = r[`第${i}名歌手`] || '';
+            const song = singer ? `${name}-${singer}` : name;
             const score = r[`第${i}名得分`] || '';
             const change = r[`第${i}名官方增幅`] || '';
-            cells.push(`<td class="val-score">${score}</td>`);
-            cells.push(`<td class="${colorClass(change)}">${change}</td>`);
+            const cls = colorClass(change);
+            cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
+            cells.push(`<td><span class="val-score">${score}</span> <span class="${cls}">${change}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     }).join('');
@@ -309,7 +342,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         return singer ? `${singer}-${name}` : name;
     };
 
-    // 收集歌曲顺序：先最新一期前三，再历史其他前三歌曲（从新到旧）
     const songOrder = [];
     const songSet = new Set();
     for (let rank = 1; rank <= 3; rank++) {
