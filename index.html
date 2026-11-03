@@ -2,34 +2,144 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>腾讯音乐由你榜 · 前三追踪</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
-  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; background: #f5f6f8; }
-  h1 { text-align: center; }
-  h2 { margin-top: 30px; }
-  table { border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
-  th, td { border: 1px solid #e0e0e0; padding: 8px 10px; text-align: center; font-size: 14px; }
-  th { background: #2b6cb0; color: #fff; }
-  tr:nth-child(even) { background: #f9fafb; }
-  .up { color: #e53e3e; }
-  .down { color: #38a169; }
+    body {
+        margin: 0; padding: 8px; background-color: #f5f5f5;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
+    }
+    .container { width: 100%; max-width: 900px; }
+    .card {
+        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-bottom: 12px; padding: 12px 0; overflow: hidden;
+    }
+    h1 { text-align: center; color: #D35400; font-size: 18px; margin: 10px 0; }
+    h3 { text-align: center; color: #D35400; margin: 0 0 10px 0; font-size: 15px; font-weight: bold; }
+    .update-time { text-align: center; color: #888; font-size: 12px; margin-bottom: 12px; }
+    .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll-box::-webkit-scrollbar { display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
+    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
+    th {
+        background-color: #fdf2e9; color: #d35400; font-weight: bold;
+        text-align: center; font-size: 12px; position: sticky; top: 0;
+    }
+    th:first-child, td:first-child {
+        padding-left: 15px; text-align: left; color: #666;
+        position: sticky; left: 0; background: white; z-index: 1;
+    }
+    th:first-child { background: #fdf2e9; z-index: 2; }
+    tr:nth-child(even) td:first-child { background: #fafafa; }
+    .val-name { text-align: left; font-weight: bold; color: #333; }
+    .val-score { font-weight: bold; color: #2980b9; }
+    .up { color: #e74c3c; font-weight: bold; }
+    .down { color: #27ae60; font-weight: bold; }
+    #loading { text-align: center; color: #666; font-size: 16px; margin-top: 50px; }
 </style>
 </head>
 <body>
-<h1>腾讯音乐由你榜 · 日榜/周榜前三追踪</h1>
-<p style="text-align:center;color:#888;">最后生成：2026/11/03 11:16（北京时间）</p>
-<h2>📅 日榜</h2>
-<table>
-<thead><tr><th>时间</th><th>第1名</th><th>1名得分</th><th>1名差值</th><th>第2名</th><th>2名得分</th><th>2名差值</th><th>第3名</th><th>3名得分</th><th>3名差值</th></tr></thead>
-<tbody>
-<tr><td>2026/11/03 11:16</td><td></td><td></td><td class=""></td><td></td><td></td><td class=""></td><td></td><td></td><td class=""></td></tr>
-</tbody></table>
-<h2>📆 周榜</h2>
-<table>
-<thead><tr><th>时间</th><th>第1名</th><th>1名得分</th><th>1名差值</th><th>第2名</th><th>2名得分</th><th>2名差值</th><th>第3名</th><th>3名得分</th><th>3名差值</th></tr></thead>
-<tbody>
-<tr><td>2026/11/03 11:16</td><td></td><td></td><td class=""></td><td></td><td></td><td class=""></td><td></td><td></td><td class=""></td></tr>
-</tbody></table>
+<div class="container">
+    <h1>腾讯音乐由你榜 · 日榜/周榜前三</h1>
+    <div class="update-time" id="updateTime"></div>
+    <div id="loading">正在加载数据...</div>
+    <div id="content" style="display:none;">
+        <div class="card">
+            <h3>📅 日榜</h3>
+            <div class="table-scroll-box">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>第1名</th><th>1名得分</th><th>1名增幅</th>
+                            <th>第2名</th><th>2名得分</th><th>2名增幅</th>
+                            <th>第3名</th><th>3名得分</th><th>3名增幅</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyBody"></tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card">
+            <h3>📆 周榜</h3>
+            <div class="table-scroll-box">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>第1名</th><th>1名得分</th><th>1名增幅</th>
+                            <th>第2名</th><th>2名得分</th><th>2名增幅</th>
+                            <th>第3名</th><th>3名得分</th><th>3名增幅</th>
+                        </tr>
+                    </thead>
+                    <tbody id="weeklyBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function colorClass(v) {
+    if (v === undefined || v === null || v === '') return '';
+    const fv = parseFloat(v);
+    if (isNaN(fv)) return '';
+    return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
+}
+
+function buildRow(row) {
+    const cells = [`<td>${row['时间'] || ''}</td>`];
+    for (let i = 1; i <= 3; i++) {
+        const name = row[`第${i}名歌名`] || '';
+        const score = row[`第${i}名得分`] || '';
+        const change = row[`第${i}名官方增幅`] || '';
+        cells.push(`<td class="val-name">${name}</td>`);
+        cells.push(`<td class="val-score">${score}</td>`);
+        cells.push(`<td class="${colorClass(change)}">${change}</td>`);
+    }
+    return `<tr>${cells.join('')}</tr>`;
+}
+
+function renderTable(rows, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+    // 最新的在最上面
+    rows.sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
+    tbody.innerHTML = rows.map(buildRow).join('');
+}
+
+Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
+    download: true,
+    header: true,
+    skipEmptyLines: true,
+    encoding: 'UTF-8',
+    complete: function(results) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        const data = results.data || [];
+        const dailyRows = data.filter(r => r['榜单类型'] === '日榜');
+        const weeklyRows = data.filter(r => r['榜单类型'] === '周榜');
+
+        renderTable(dailyRows, 'dailyBody');
+        renderTable(weeklyRows, 'weeklyBody');
+
+        // 显示最新一条记录的时间作为“最后更新”
+        const allTimes = data.map(r => r['时间']).filter(Boolean).sort();
+        if (allTimes.length) {
+            document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+        }
+    },
+    error: function(err) {
+        document.getElementById('loading').innerText = '加载 uni_chart_data.csv 失败，请确认文件在同目录下。';
+        console.error(err);
+    }
+});
+</script>
 </body>
 </html>
