@@ -19,39 +19,36 @@
         border: 1px solid rgba(234,54,144,0.10);
     }
     h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
-    h3 { text-align: center; color: #ea3690; margin: 0 0 10px 0; font-size: 15px; font-weight: bold; }
     .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
-    /* 表格滑动框 */
-    .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table-scroll-box::-webkit-scrollbar { display: none; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1000px; }
-    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #f3e6ee; white-space: nowrap; }
-    th {
-        background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold;
-        text-align: center; font-size: 12px; position: sticky; top: 0;
+    .title {
+        text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 8px 0;
     }
-    th:first-child, td:first-child {
-        padding-left: 15px; text-align: left; color: #666;
-        position: sticky; left: 0; background: white; z-index: 1;
+    .chart-legend-text {
+        text-align: center;
+        font-size: 12px;
+        color: #666;
+        margin: 0 10px 6px 10px;
+        line-height: 1.8;
     }
-    th:first-child { background: rgba(234,54,144,0.10); z-index: 2; }
-    tr:nth-child(even) td:first-child { background: #fdf8fb; }
-    .val-name { text-align: left; font-weight: bold; color: #333; }
-    .val-singer { text-align: left; color: #999; font-size: 12px; }
-    .val-score { font-weight: bold; color: #ea3690; }
-    .up { color: #e74c3c; font-weight: bold; }
-    .down { color: #27ae60; font-weight: bold; }
+    .chart-legend-text .item {
+        display: inline-block;
+        margin: 0 8px;
+    }
+    .chart-legend-text .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+        vertical-align: middle;
+    }
 
-    /* 图表滑动框 */
     .chart-scroll-box {
         width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
     }
     .chart-scroll-box::-webkit-scrollbar { display: none; }
     .chart-wrapper { width: 900px; height: 350px; }
-    .title {
-        text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 10px 0;
-    }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
@@ -63,45 +60,10 @@
     <div id="loading">正在加载数据...</div>
     <div id="content" style="display:none;">
 
-        <!-- 日榜表格 -->
-        <div class="card">
-            <h3>📅 日榜</h3>
-            <div class="table-scroll-box">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>时间</th>
-                            <th>第1名</th><th>1名歌手</th><th>1名得分</th><th>1名增幅</th>
-                            <th>第2名</th><th>2名歌手</th><th>2名得分</th><th>2名增幅</th>
-                            <th>第3名</th><th>3名歌手</th><th>3名得分</th><th>3名增幅</th>
-                        </tr>
-                    </thead>
-                    <tbody id="dailyBody"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 周榜表格 -->
-        <div class="card">
-            <h3>📆 周榜</h3>
-            <div class="table-scroll-box">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>时间</th>
-                            <th>第1名</th><th>1名歌手</th><th>1名得分</th><th>1名增幅</th>
-                            <th>第2名</th><th>2名歌手</th><th>2名得分</th><th>2名增幅</th>
-                            <th>第3名</th><th>3名歌手</th><th>3名得分</th><th>3名增幅</th>
-                        </tr>
-                    </thead>
-                    <tbody id="weeklyBody"></tbody>
-                </table>
-            </div>
-        </div>
-
         <!-- 日榜趋势图 -->
         <div class="card">
             <div class="title">📅 日榜前三得分趋势 (👈左右滑动👉)</div>
+            <div class="chart-legend-text" id="dailyLegend"></div>
             <div class="chart-scroll-box">
                 <div class="chart-wrapper" id="chartDaily"></div>
             </div>
@@ -110,6 +72,7 @@
         <!-- 周榜趋势图 -->
         <div class="card">
             <div class="title">📆 周榜前三得分趋势 (👈左右滑动👉)</div>
+            <div class="chart-legend-text" id="weeklyLegend"></div>
             <div class="chart-scroll-box">
                 <div class="chart-wrapper" id="chartWeekly"></div>
             </div>
@@ -119,51 +82,21 @@
 </div>
 
 <script>
-function colorClass(v) {
-    if (v === undefined || v === null || v === '') return '';
-    const fv = parseFloat(v);
-    if (isNaN(fv)) return '';
-    return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
-}
-
-function buildRow(row) {
-    const cells = [`<td>${row['时间'] || ''}</td>`];
-    for (let i = 1; i <= 3; i++) {
-        const name = row[`第${i}名歌名`] || '';
-        const singer = row[`第${i}名歌手`] || '';
-        const score = row[`第${i}名得分`] || '';
-        const change = row[`第${i}名官方增幅`] || '';
-        cells.push(`<td class="val-name">${name}</td>`);
-        cells.push(`<td class="val-singer">${singer}</td>`);
-        cells.push(`<td class="val-score">${score}</td>`);
-        cells.push(`<td class="${colorClass(change)}">${change}</td>`);
-    }
-    return `<tr>${cells.join('')}</tr>`;
-}
-
-function renderTable(rows, tbodyId) {
-    const tbody = document.getElementById(tbodyId);
-    if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#999;">暂无数据</td></tr>';
-        return;
-    }
-    rows.sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
-    tbody.innerHTML = rows.map(buildRow).join('');
-}
-
-// ====== 图表 ======
 const themeColor = '#ea3690';
 const chartDaily = echarts.init(document.getElementById('chartDaily'), null, { width: 900, height: 350 });
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'), null, { width: 900, height: 350 });
 chartDaily.showLoading();
 chartWeekly.showLoading();
 
-function renderChart(rows, chartInstance) {
+function renderChart(rows, chartInstance, legendContainerId) {
+    const legendEl = document.getElementById(legendContainerId);
+
     if (!rows.length) {
         chartInstance.hideLoading();
         chartInstance.setOption({
             title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
         }, true);
+        if (legendEl) legendEl.innerHTML = '';
         return;
     }
 
@@ -177,14 +110,14 @@ function renderChart(rows, chartInstance) {
         return parts.length > 1 ? parts[1] : t;
     });
 
-    // 取最新一条记录，用于生成图例名称（歌名 - 歌手）
+    // 取最新一条记录，用于生成图例文字
     const latest = sorted[sorted.length - 1];
 
-    function legendName(rank) {
+    function legendText(rank) {
         const name = latest[`第${rank}名歌名`] || '';
         const singer = latest[`第${rank}名歌手`] || '';
         if (!name) return `第${rank}名`;
-        return singer ? `${name} - ${singer}` : name;
+        return singer ? `${singer} - ${name}` : name;
     }
 
     function buildSeriesData(rank) {
@@ -202,11 +135,10 @@ function renderChart(rows, chartInstance) {
         }));
     }
 
-    // 三条线用玫红的不同深浅，保持主题统一
     const lineColors = ['#ea3690', '#f06aad', '#f7a3cc'];
 
     const series = [1, 2, 3].map((rank, idx) => ({
-        name: legendName(rank),
+        name: `第${rank}名`,
         type: 'line',
         data: buildSeriesData(rank),
         smooth: false,
@@ -219,6 +151,14 @@ function renderChart(rows, chartInstance) {
     }));
 
     const tooltipData = [1, 2, 3].map(rank => buildTooltipData(rank));
+
+    // 图表上方 ①歌手 - 歌名 文字
+    if (legendEl) {
+        const marks = ['①', '②', '③'];
+        legendEl.innerHTML = [1, 2, 3].map((rank, idx) =>
+            `<span class="item"><span class="dot" style="background:${lineColors[idx]}"></span>${marks[idx]}${legendText(rank)}</span>`
+        ).join('');
+    }
 
     chartInstance.hideLoading();
     chartInstance.setOption({
@@ -233,27 +173,17 @@ function renderChart(rows, chartInstance) {
                 params.forEach(p => {
                     const rank = p.seriesIndex + 1;
                     const d = tooltipData[p.seriesIndex][idx];
-                    html += `<div>${p.marker} 第${rank}名：${d.name}${d.singer ? ' - ' + d.singer : ''} <b>${d.score}</b></div>`;
+                    html += `<div>${p.marker} 第${rank}名：${d.singer ? d.singer + ' - ' : ''}${d.name} <b>${d.score}</b></div>`;
                 });
                 return html;
             }
         },
-        legend: {
-            top: '0%',
-            itemWidth: 12,
-            itemHeight: 8,
-            textStyle: { fontSize: 11, color: '#666' },
-            type: 'scroll',
-            formatter: function(name) {
-                return name.length > 22 ? name.slice(0, 22) + '…' : name;
-            }
-        },
-        grid: { left: '2%', right: '5%', bottom: '10%', top: '18%', containLabel: true },
+        grid: { left: '2%', right: '5%', bottom: '10%', top: '8%', containLabel: true },
         xAxis: {
             type: 'category',
             boundaryGap: false,
             data: times,
-            axisLabel: { interval: 'auto', fontSize: 11, color: '#888' },
+            axisLabel: { interval: 'auto', fontSize: 11, color: '#888', rotate: 45 },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
         yAxis: {
@@ -283,11 +213,8 @@ Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
         const dailyRows = data.filter(r => r['榜单类型'] === '日榜');
         const weeklyRows = data.filter(r => r['榜单类型'] === '周榜');
 
-        renderTable(dailyRows, 'dailyBody');
-        renderTable(weeklyRows, 'weeklyBody');
-
-        renderChart(dailyRows, chartDaily);
-        renderChart(weeklyRows, chartWeekly);
+        renderChart(dailyRows, chartDaily, 'dailyLegend');
+        renderChart(weeklyRows, chartWeekly, 'weeklyLegend');
 
         const allTimes = data.map(r => r['时间']).filter(Boolean).sort();
         if (allTimes.length) {
