@@ -9,7 +9,8 @@
 <style>
     body {
         margin: 0; padding: 8px; background-color: #faf7f9;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        /* 等宽字体：monospace 优先 */
+        font-family: monospace, "SF Mono", "Menlo", "Monaco", "Consolas", "Liberation Mono", "Courier New";
         display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
     }
     .container { width: 100%; max-width: 1600px; }
@@ -21,6 +22,7 @@
         border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
         font-size: 15px; font-weight: bold; padding: 8px 26px; border-radius: 20px;
         cursor: pointer; transition: all 0.2s ease; outline: none;
+        font-family: inherit;
     }
     .tab-btn.active {
         background: #ea3690; color: white; border-color: #ea3690;
@@ -98,9 +100,8 @@
         top: 0;
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 第一列固定，背景继承所在行（不再单独设色） */
+    /* 第一列仅保留 sticky 固定，视觉与其他列一致 */
     .recent-table td:first-child {
-        text-align: left; padding-left: 8px; color: #666;
         position: sticky; left: 0; z-index: 1;
         background: inherit;
     }
@@ -111,7 +112,7 @@
     /* 数值与涨跌颜色 */
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
-    .down { color: #27ae60; font-weight: bold; }
+    .flat, .down { color: #999; font-weight: bold; }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
@@ -258,7 +259,7 @@ function colorClass(v) {
     if (v === undefined || v === null || v === '') return '';
     const fv = parseFloat(v);
     if (isNaN(fv)) return '';
-    return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
+    return fv > 0 ? 'up' : 'flat';
 }
 
 // 将时间字符串中的年份去掉（例如 "2025-03-10" -> "03-10"）
@@ -289,8 +290,8 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-// 渲染图表（已删除 yName 相关参数）
-function renderChart(rows, chartInst, legendId, field) {
+// 渲染图表（已删除 yName 相关参数；yInterval 可选，仅得分图传 1）
+function renderChart(rows, chartInst, legendId, field, yInterval) {
     const legendEl = document.getElementById(legendId);
     if (!rows.length) {
         chartInst.hideLoading();
@@ -377,6 +378,7 @@ function renderChart(rows, chartInst, legendId, field) {
         yAxis: {
             type: 'value',
             scale: true,
+            interval: yInterval,   /* undefined=自动；1=强制间隔1（仅得分图） */
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
@@ -410,16 +412,16 @@ function loadCsv(url) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    // 日榜：表格 + 得分图 + 三个维度
+    // 日榜：表格 + 得分图（纵轴间隔1）+ 三个维度（自动）
     renderRecentTable(dailyRows, 'dailyTableBody');
-    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分');
+    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', 1);
     renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度');
     renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度');
     renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度');
 
-    // 周榜：表格 + 得分图 + 三个维度
+    // 周榜：表格 + 得分图（纵轴间隔1）+ 三个维度（自动）
     renderRecentTable(weeklyRows, 'weeklyTableBody');
-    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分');
+    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', 1);
     renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度');
     renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度');
     renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度');
