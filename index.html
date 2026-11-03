@@ -34,7 +34,6 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 宽屏：表格:图表 = 2:1，固定高 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: flex-start;
@@ -95,6 +94,7 @@
         border-collapse: collapse;
         font-size: 12px;
         table-layout: fixed;
+        min-width: 720px;      /* ★ 保证 7 列宽度，窄屏横向滚动 */
     }
     .recent-table th, .recent-table td {
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
@@ -133,32 +133,21 @@
 
     /* ---------- 移动端自适应 ---------- */
     @media (max-width: 900px) {
-        .score-row {
-            flex-direction: column;
-            align-items: stretch;
+        .score-row { flex-direction: column; align-items: stretch; }
+        .score-table-col, .score-chart-col {
+            flex: 1 1 100%; width: 100%; min-width: 0; max-width: 100%;
         }
-        .score-table-col,
-        .score-chart-col {
-            flex: 1 1 100%;
-            width: 100%;
-            min-width: 0;
-            max-width: 100%;
+        .score-table-col .card, .score-chart-col .card {
+            height: auto; min-height: 0;
         }
-        /* 移动端卡片不再固定高度 */
-        .score-table-col .card,
-        .score-chart-col .card {
-            height: auto;
-            min-height: 0;
-        }
-        /* 表格限制最大高度，内部滚动 */
-        .score-table-col .card {
-            max-height: 420px;
-        }
-        /* 图表容器给确定高度，ECharts 才能渲染 */
-        .chart-wrapper-flex {
-            height: 280px;
-            flex: none;
-        }
+        .score-table-col .card { max-height: 420px; overflow: hidden; }
+        .chart-wrapper-flex { height: 280px; flex: none; }
+
+        /* ★ 移动端表格横向滚动，避免挤在一起 */
+        .table-scroll-box { overflow-x: auto; overflow-y: auto; }
+        .recent-table { min-width: 720px; font-size: 11px; }
+        .recent-table th, .recent-table td { padding: 6px 4px; }
+        .recent-table .song-cell { max-width: 150px; }
     }
 </style>
 </head>
@@ -174,7 +163,6 @@
             <button class="tab-btn" data-tab="daily">日榜</button>
         </div>
 
-        <!-- 周榜面板 -->
         <div class="tab-panel active" id="panel-weekly">
             <div class="score-row">
                 <div class="score-table-col">
@@ -239,7 +227,6 @@
             </div>
         </div>
 
-        <!-- 日榜面板 -->
         <div class="tab-panel" id="panel-daily">
             <div class="score-row">
                 <div class="score-table-col">
@@ -362,54 +349,42 @@ function renderRecentTable(rows, tbodyId) {
 
 function renderChart(rows, chartInst, legendId, field, yInterval) {
     const legendEl = document.getElementById(legendId);
-    if (!rows.length) {
-        chartInst.hideLoading();
-        chartInst.setOption({
-            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
-        }, true);
-        if (legendEl) legendEl.innerHTML = '';
-        return;
-    }
 
-    let sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
-
-    const parseTime = (s) => {
-        const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    const hourKeyOf = (s) => {
+        const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}))?/);
         if (!m) return null;
-        return new Date(
-            parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]),
-            m[4] ? parseInt(m[4]) : 0,
-            m[5] ? parseInt(m[5]) : 0,
-            m[6] ? parseInt(m[6]) : 0
-        );
+        return `${m[1]}-${String(m[2]).padStart(2,'0')}-${String(m[3]).padStart(2,'0')} ${String(m[4]||0).padStart(2,'0')}`;
     };
-    if (sorted.length) {
-        const latestTime = parseTime(sorted[sorted.length - 1]['时间']);
-        if (latestTime) {
-            const cutoff = latestTime.getTime() - 24 * 60 * 60 * 1000;
-            sorted = sorted.filter(r => {
-                const t = parseTime(r['时间']);
-                return t && t.getTime() >= cutoff;
-            });
-        }
-    }
-
-    if (!sorted.length) {
-        chartInst.hideLoading();
-        chartInst.setOption({
-            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
-        }, true);
-        if (legendEl) legendEl.innerHTML = '';
-        return;
-    }
-
-    const times = sorted.map(r => {
-        const t = r['时间'] || '';
-        const p = t.split(' ');
-        return p.length > 1 ? p[1] : t;
+    const rowByHour = {};
+    rows.forEach(r => {
+        const k = hourKeyOf(r['时间']);
+        if (k) rowByHour[k] = r;
     });
 
-    const latest = sorted[sorted.length - 1];
+    const now = new Date();
+    const axisHours = [];
+    for (let i = 23; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+        const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}`;
+        axisHours.push({ key, label: `${String(d.getHours()).padStart(2,'0')}:00` });
+    }
+
+    let latest = null;
+    for (let i = axisHours.length - 1; i >= 0; i--) {
+        if (rowByHour[axisHours[i].key]) { latest = rowByHour[axisHours[i].key]; break; }
+    }
+
+    if (!latest) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
+    const times = axisHours.map(h => h.label);
+
     const songKey = (r, rank) => {
         const name = r[`第${rank}名歌名`] || '';
         const singer = r[`第${rank}名歌手`] || '';
@@ -421,18 +396,14 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
     const songSet = new Set();
     for (let rank = 1; rank <= 3; rank++) {
         const key = songKey(latest, rank);
-        if (key && !songSet.has(key)) {
-            songSet.add(key);
-            songOrder.push(key);
-        }
+        if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
     }
-    for (let i = sorted.length - 1; i >= 0; i--) {
+    for (let i = axisHours.length - 1; i >= 0; i--) {
+        const r = rowByHour[axisHours[i].key];
+        if (!r) continue;
         for (let rank = 1; rank <= 3; rank++) {
-            const key = songKey(sorted[i], rank);
-            if (key && !songSet.has(key)) {
-                songSet.add(key);
-                songOrder.push(key);
-            }
+            const key = songKey(r, rank);
+            if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
         }
     }
 
@@ -442,7 +413,9 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
     });
 
     function songSeriesData(key) {
-        return sorted.map(r => {
+        return axisHours.map(h => {
+            const r = rowByHour[h.key];
+            if (!r) return null;
             for (let rank = 1; rank <= 3; rank++) {
                 if (songKey(r, rank) === key) {
                     const s = r[`第${rank}名${field}`] || '';
@@ -480,11 +453,15 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
             formatter: function(params) {
                 if (!params.length) return '';
                 const i = params[0].dataIndex;
-                let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[i]['时间']}</div>`;
-                params.forEach(p => {
-                    if (p.value === null || p.value === undefined) return;
-                    html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
-                });
+                const h = axisHours[i];
+                const r = rowByHour[h.key];
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${h.label}${r ? '' : '（无数据）'}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+                    });
+                }
                 return html;
             }
         },
@@ -493,16 +470,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
             type: 'category',
             boundaryGap: false,
             data: times,
-            axisLabel: {
-                interval: 0,
-                fontSize: 10,
-                color: '#888',
-                rotate: 45,
-                formatter: function (value) {
-                    const m = String(value).match(/(\d{1,2}):(\d{2})/);
-                    return (m && m[2] === '06') ? value : '';
-                }
-            },
+            axisLabel: { interval: 'auto', fontSize: 10, color: '#888', rotate: 45 },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
         yAxis: {
