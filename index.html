@@ -32,17 +32,13 @@
     .charts-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表，等高 */
+    /* 得分行：左表格 + 右图表，等宽、等高 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px;
         align-items: stretch;
     }
-    .score-table-col {
-        flex: 0 0 420px; min-width: 320px; max-width: 100%; display: flex;
-    }
-    .score-chart-col {
-        flex: 1 1 480px; min-width: 0; display: flex;
-    }
+    .score-table-col { flex: 1 1 0; min-width: 0; display: flex; }
+    .score-chart-col { flex: 1 1 0; min-width: 0; display: flex; }
 
     .card {
         background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -336,12 +332,7 @@ function renderChart(rows, chartInst, legendId, field) {
                 return html;
             }
         },
-        grid: {
-            left: '2%', right: '5%',
-            bottom: field === '得分' ? '6%' : '12%',
-            top: field === '得分' ? '4%' : '8%',
-            containLabel: true
-        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
         xAxis: {
             type: 'category',
             boundaryGap: false,
