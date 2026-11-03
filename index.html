@@ -54,26 +54,95 @@
     .chart-wrapper { width: 100%; height: 350px; }
     .chart-wrapper-sm { width: 100%; height: 300px; }
 
-    /* 最近10条表格 */
-    .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* --- 表格区域：等高、等宽、统一表头颜色、时间去年份 --- */
+    .table-scroll-box {
+        width: 100%;
+        /* 取消固定的最小宽度限制，让表格自然撑满父容器 */
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        /* 让滚动盒在父级弹性布局中尽量撑高，与图表区域一致 */
+        display: flex;
+        flex-direction: column;
+        justify-content: stretch;
+    }
     .table-scroll-box::-webkit-scrollbar { display: none; }
-    .recent-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
+
+    .recent-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        /* 关键：表格宽度100%，保证与图表等宽 */
+        table-layout: fixed; 
+        /* 让表格在垂直方向尽可能填满父容器（滚动盒） */
+        height: 100%;
+    }
     .recent-table th, .recent-table td {
         padding: 6px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
     }
+    /* 统一表头背景色（与卡片主色调一致） */
     .recent-table th {
-        background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold; font-size: 11px;
-        position: sticky; top: 0;
+        background-color: rgba(234,54,144,0.10) !important; 
+        color: #ea3690; 
+        font-weight: bold; 
+        font-size: 11px;
+        position: sticky; 
+        top: 0;
+        /* 保留表头视觉层次 */
+        box-shadow: 0 1px 0 #f3e6ee;
     }
+    /* 第一列固定 */
     .recent-table td:first-child, .recent-table th:first-child {
         text-align: left; padding-left: 8px; color: #666;
         position: sticky; left: 0; background: white; z-index: 1;
     }
-    .recent-table th:first-child { background: rgba(234,54,144,0.10); z-index: 2; }
+    .recent-table th:first-child { 
+        background: rgba(234,54,144,0.10) !important; 
+        z-index: 2; 
+        /* 保证表头固定列背景与其它表头一致 */
+    }
     .recent-table tr:nth-child(even) td:first-child { background: #fdf8fb; }
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
     .down { color: #27ae60; font-weight: bold; }
+
+    /* 为了让表格垂直方向填满，让 tbody 的行高在必要时拉伸（利用 flex 或 height） */
+    .table-scroll-box .recent-table {
+        height: 100%;
+    }
+    /* 但表格本身无法直接撑满 flex 容器，故给滚动盒一个高度继承父级 */
+    .score-table-col {
+        display: flex;
+        flex-direction: column;
+    }
+    .score-table-col .card {
+        display: flex;
+        flex-direction: column;
+        flex: 1 1 auto;
+        /* 卡片内部也为flex，让table-scroll-box撑满 */
+    }
+    .score-table-col .card .table-scroll-box {
+        flex: 1 1 auto;
+        min-height: 0; /* 防止溢出 */
+        display: flex;
+        flex-direction: column;
+    }
+    .score-table-col .card .table-scroll-box .recent-table {
+        flex: 1 1 auto;
+        height: 100%;
+    }
+    /* 让表格行均匀分布，填充高度（可选，看效果） */
+    .recent-table tbody tr {
+        height: auto; /* 保持自适应 */
+    }
+    /* 避免表格内容被压缩，保留最小行高 */
+    .recent-table td, .recent-table th {
+        min-height: 36px; 
+        line-height: 1.5;
+    }
+    /* 微调表格内边距以保证与图表视觉平衡 */
+    .recent-table th, .recent-table td {
+        padding: 8px 5px;
+    }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
@@ -223,6 +292,13 @@ function colorClass(v) {
     return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
 }
 
+// 将时间字符串中的年份去掉（例如 "2025-03-10" -> "03-10"）
+function stripYear(timeStr) {
+    if (!timeStr) return '';
+    // 匹配 YYYY- 或 YYYY/ 开头，替换为空
+    return timeStr.replace(/^\d{4}[-/]/, '');
+}
+
 // 最近 10 条表格
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
@@ -233,7 +309,9 @@ function renderRecentTable(rows, tbodyId) {
     const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
     const recent = sorted.slice(0, 10);
     tbody.innerHTML = recent.map(r => {
-        const cells = [`<td>${r['时间'] || ''}</td>`];
+        // 时间列去掉年份
+        const displayTime = stripYear(r['时间'] || '');
+        const cells = [`<td>${displayTime}</td>`];
         for (let i = 1; i <= 3; i++) {
             const score = r[`第${i}名得分`] || '';
             const change = r[`第${i}名官方增幅`] || '';
@@ -327,7 +405,7 @@ function renderChart(rows, chartInst, legendId, field, yName) {
         },
         yAxis: {
             type: 'value',
-            name: yName,
+            name: '',
             nameTextStyle: { color: '#999', fontSize: 11 },
             scale: true,
             axisLabel: { fontSize: 10, color: '#888' },
