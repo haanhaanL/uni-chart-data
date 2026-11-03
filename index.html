@@ -34,19 +34,19 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表，宽度 1:2，等高拉伸 */
+    /* 得分行：左表格 + 右图表，宽度 1:1，等高拉伸 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: stretch;
     }
     .score-table-col {
-        flex: 1 1 0;            /* 宽度占比 1 */
+        flex: 1 1 0;
         min-width: 280px;
         max-width: 100%;
         display: flex; flex-direction: column;
     }
     .score-chart-col {
-        flex: 1 1 0;            /* 宽度占比 2 */
+        flex: 1 1 0;
         min-width: 0;
     }
 
@@ -89,7 +89,6 @@
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
         min-height: 36px; line-height: 1.5;
     }
-    /* 统一表头背景色 */
     .recent-table th {
         background-color: rgba(234,54,144,0.10) !important;
         color: #ea3690;
@@ -99,15 +98,12 @@
         top: 0;
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 第一列仅保留 sticky 固定，视觉与其他列一致 */
     .recent-table td:first-child {
         position: sticky; left: 0; z-index: 1;
     }
-    /* 双数数据行背景色 */
     .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
     }
-    /* 数值与涨跌颜色 */
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
     .flat, .down { color: #999; font-weight: bold; }
@@ -238,7 +234,7 @@
 </div>
 
 <script>
-const lineColors = ['#ea3690', '#7c3aed', '#e74c3c'];
+const lineColors = ['#ea3690', '#7c3aed', '#e74c3c', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316'];
 
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
@@ -260,13 +256,11 @@ function colorClass(v) {
     return fv > 0 ? 'up' : 'flat';
 }
 
-// 将时间字符串中的年份去掉（例如 "2025-03-10" -> "03-10"）
 function stripYear(timeStr) {
     if (!timeStr) return '';
     return timeStr.replace(/^\d{4}[-/]/, '');
 }
 
-// 最近 10 条表格
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -288,7 +282,7 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-// 渲染图表（已删除 yName 相关参数；yInterval 可选，仅得分图传 1）
+// 按“歌手-歌名”绑定折线
 function renderChart(rows, chartInst, legendId, field, yInterval) {
     const legendEl = document.getElementById(legendId);
     if (!rows.length) {
@@ -306,61 +300,83 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         const p = t.split(' ');
         return p.length > 1 ? p[1] : t;
     });
-    const latest = sorted[sorted.length - 1];
 
-    function legendText(rank) {
-        const name = latest[`第${rank}名歌名`] || '';
-        const singer = latest[`第${rank}名歌手`] || '';
-        if (!name) return `第${rank}名`;
-        return singer ? `${singer} - ${name}` : name;
+    const latest = sorted[sorted.length - 1];
+    const songKey = (r, rank) => {
+        const name = r[`第${rank}名歌名`] || '';
+        const singer = r[`第${rank}名歌手`] || '';
+        if (!name) return '';
+        return singer ? `${singer}-${name}` : name;
+    };
+
+    // 收集歌曲顺序：先最新一期前三，再历史其他前三歌曲（从新到旧）
+    const songOrder = [];
+    const songSet = new Set();
+    for (let rank = 1; rank <= 3; rank++) {
+        const key = songKey(latest, rank);
+        if (key && !songSet.has(key)) {
+            songSet.add(key);
+            songOrder.push(key);
+        }
+    }
+    for (let i = sorted.length - 1; i >= 0; i--) {
+        for (let rank = 1; rank <= 3; rank++) {
+            const key = songKey(sorted[i], rank);
+            if (key && !songSet.has(key)) {
+                songSet.add(key);
+                songOrder.push(key);
+            }
+        }
     }
 
-    function seriesData(rank) {
+    const songColorMap = {};
+    songOrder.forEach((key, idx) => {
+        songColorMap[key] = lineColors[idx % lineColors.length];
+    });
+
+    function songSeriesData(key) {
         return sorted.map(r => {
-            const s = r[`第${rank}名${field}`] || '';
-            return s === '' ? null : parseFloat(s);
+            for (let rank = 1; rank <= 3; rank++) {
+                if (songKey(r, rank) === key) {
+                    const s = r[`第${rank}名${field}`] || '';
+                    return s === '' ? null : parseFloat(s);
+                }
+            }
+            return null;
         });
     }
 
-    const series = [1, 2, 3].map((rank, idx) => ({
-        name: `第${rank}名`,
+    const series = songOrder.map(key => ({
+        name: key,
         type: 'line',
-        data: seriesData(rank),
+        data: songSeriesData(key),
         smooth: false,
         symbol: 'circle',
         symbolSize: 3,
         connectNulls: false,
-        itemStyle: { color: lineColors[idx] },
-        lineStyle: { width: 2, color: lineColors[idx] },
+        itemStyle: { color: songColorMap[key] },
+        lineStyle: { width: 2, color: songColorMap[key] },
         emphasis: { focus: 'series' },
     }));
 
     if (legendEl) {
-        const marks = ['①', '②', '③'];
-        legendEl.innerHTML = [1, 2, 3].map((rank, idx) =>
-            `<span class="item"><span class="dot" style="background:${lineColors[idx]}"></span>${marks[idx]}${legendText(rank)}</span>`
+        legendEl.innerHTML = songOrder.map(key =>
+            `<span class="item"><span class="dot" style="background:${songColorMap[key]}"></span>${key}</span>`
         ).join('');
     }
 
     chartInst.hideLoading();
     chartInst.setOption({
-        color: lineColors,
         tooltip: {
             trigger: 'axis',
             confine: true,
             formatter: function(params) {
                 if (!params.length) return '';
                 const i = params[0].dataIndex;
-                const marks = ['①', '②', '③'];
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[i]['时间']}</div>`;
                 params.forEach(p => {
-                    const rank = p.seriesIndex + 1;
-                    const mark = marks[p.seriesIndex];
-                    const name = sorted[i][`第${rank}名歌名`] || '';
-                    const singer = sorted[i][`第${rank}名歌手`] || '';
-                    const val = sorted[i][`第${rank}名${field}`] || '';
-                    const songInfo = singer ? `${singer}-${name}` : name;
-                    html += `<div>${p.marker} ${mark}：${val} ${songInfo}</div>`;
+                    if (p.value === null || p.value === undefined) return;
+                    html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
                 });
                 return html;
             }
@@ -376,7 +392,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         yAxis: {
             type: 'value',
             scale: true,
-            interval: yInterval,   /* undefined=自动；1=强制间隔1（仅得分图） */
+            interval: yInterval,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
@@ -410,14 +426,12 @@ function loadCsv(url) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    // 日榜：表格 + 得分图（纵轴间隔1）+ 三个维度（自动）
     renderRecentTable(dailyRows, 'dailyTableBody');
     renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', 1);
     renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度');
     renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度');
     renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度');
 
-    // 周榜：表格 + 得分图（纵轴间隔1）+ 三个维度（自动）
     renderRecentTable(weeklyRows, 'weeklyTableBody');
     renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', 1);
     renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度');
