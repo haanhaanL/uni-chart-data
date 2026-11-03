@@ -33,16 +33,21 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表，等高拉伸 */
+    /* 得分行：左表格 + 右图表，宽度 1:2，等高拉伸 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: stretch;
     }
     .score-table-col {
-        flex: 0 0 420px; min-width: 320px; max-width: 100%;
+        flex: 1 1 0;            /* 宽度占比 1 */
+        min-width: 280px;
+        max-width: 100%;
         display: flex; flex-direction: column;
     }
-    .score-chart-col { flex: 1 1 480px; min-width: 0; }
+    .score-chart-col {
+        flex: 2 1 0;            /* 宽度占比 2 */
+        min-width: 0;
+    }
 
     .card {
         background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -60,7 +65,7 @@
     .chart-wrapper { width: 100%; height: 350px; }
     .chart-wrapper-sm { width: 100%; height: 300px; }
 
-    /* --- 表格区域：等高、等宽、统一表头颜色、时间去年份、双数行底色 --- */
+    /* --- 表格区域：等高、统一表头颜色、时间去年份、双数行底色 --- */
     .score-table-col .card {
         display: flex; flex-direction: column; flex: 1 1 auto;
     }
@@ -98,12 +103,12 @@
         text-align: left; padding-left: 8px; color: #666;
         position: sticky; left: 0; background: white; z-index: 1;
     }
-    /* 双数数据行背景色（含第一列） */
+    /* 双数数据行背景色（含第一列）——透明度再降15% */
     .recent-table tbody tr:nth-child(even) {
-        background-color: #ea369014;
+        background-color: #ea369011;
     }
     .recent-table tbody tr:nth-child(even) td:first-child {
-        background-color: #ea369014;
+        background-color: #ea369011;
     }
     /* 数值与涨跌颜色 */
     .val-score { font-weight: bold; color: #333; }
