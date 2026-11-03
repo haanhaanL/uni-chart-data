@@ -641,7 +641,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             boundaryGap: false,
             data: times,
             axisLabel: {
-                interval: 'auto',
+                interval: range === '3' ? 'auto' : 1,   // 3小时自动；24h/当日隔一个显示
                 fontSize: 10,
                 color: '#888',
                 rotate: 45,
