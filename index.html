@@ -12,43 +12,42 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
     }
-    .container { width: 100%; max-width: 900px; }
-    .card {
-        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
-        margin-bottom: 12px; padding: 12px 0; overflow: hidden;
-        border: 1px solid rgba(234,54,144,0.10);
-    }
+    .container { width: 100%; max-width: 1400px; }
     h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
+    /* 并排布局：宽屏两列，窄屏一列 */
+    .charts-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        width: 100%;
+    }
+    .chart-col {
+        flex: 1 1 520px;   /* 每列最小 520px，空间够就并排 */
+        min-width: 0;      /* 允许 flex 子项收缩，避免溢出 */
+    }
+
+    .card {
+        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
+        margin-bottom: 0; padding: 12px 0; overflow: hidden;
+        border: 1px solid rgba(234,54,144,0.10);
+    }
     .title {
         text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 8px 0;
     }
     .chart-legend-text {
-        text-align: center;
-        font-size: 12px;
-        color: #666;
-        margin: 0 10px 6px 10px;
-        line-height: 1.8;
+        text-align: center; font-size: 12px; color: #666;
+        margin: 0 10px 6px 10px; line-height: 1.8;
     }
-    .chart-legend-text .item {
-        display: inline-block;
-        margin: 0 8px;
-    }
+    .chart-legend-text .item { display: inline-block; margin: 0 6px; }
     .chart-legend-text .dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 4px;
-        vertical-align: middle;
+        display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+        margin-right: 4px; vertical-align: middle;
     }
 
-    .chart-scroll-box {
-        width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
-    }
-    .chart-scroll-box::-webkit-scrollbar { display: none; }
-    .chart-wrapper { width: 900px; height: 350px; }
+    /* 图表容器宽度 100%，高度固定，宽度由 JS resize 时读取 */
+    .chart-wrapper { width: 100%; height: 350px; }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
@@ -60,21 +59,23 @@
     <div id="loading">正在加载数据...</div>
     <div id="content" style="display:none;">
 
-        <!-- 日榜趋势图 -->
-        <div class="card">
-            <div class="title">📅 日榜前三得分趋势 (👈左右滑动👉)</div>
-            <div class="chart-legend-text" id="dailyLegend"></div>
-            <div class="chart-scroll-box">
-                <div class="chart-wrapper" id="chartDaily"></div>
+        <div class="charts-row">
+            <!-- 日榜趋势图 -->
+            <div class="chart-col">
+                <div class="card">
+                    <div class="title">📅 日榜前三得分趋势</div>
+                    <div class="chart-legend-text" id="dailyLegend"></div>
+                    <div class="chart-wrapper" id="chartDaily"></div>
+                </div>
             </div>
-        </div>
 
-        <!-- 周榜趋势图 -->
-        <div class="card">
-            <div class="title">📆 周榜前三得分趋势 (👈左右滑动👉)</div>
-            <div class="chart-legend-text" id="weeklyLegend"></div>
-            <div class="chart-scroll-box">
-                <div class="chart-wrapper" id="chartWeekly"></div>
+            <!-- 周榜趋势图 -->
+            <div class="chart-col">
+                <div class="card">
+                    <div class="title">📆 周榜前三得分趋势</div>
+                    <div class="chart-legend-text" id="weeklyLegend"></div>
+                    <div class="chart-wrapper" id="chartWeekly"></div>
+                </div>
             </div>
         </div>
 
@@ -82,11 +83,16 @@
 </div>
 
 <script>
-const themeColor = '#ea3690';
-const chartDaily = echarts.init(document.getElementById('chartDaily'), null, { width: 900, height: 350 });
-const chartWeekly = echarts.init(document.getElementById('chartWeekly'), null, { width: 900, height: 350 });
+const chartDailyEl = document.getElementById('chartDaily');
+const chartWeeklyEl = document.getElementById('chartWeekly');
+
+const chartDaily = echarts.init(chartDailyEl);
+const chartWeekly = echarts.init(chartWeeklyEl);
 chartDaily.showLoading();
 chartWeekly.showLoading();
+
+// 三条线颜色，明显区分
+const lineColors = ['#ea3690', '#2b6cb0', '#e6a23c'];
 
 function renderChart(rows, chartInstance, legendContainerId) {
     const legendEl = document.getElementById(legendContainerId);
@@ -100,17 +106,14 @@ function renderChart(rows, chartInstance, legendContainerId) {
         return;
     }
 
-    // 按时间升序
     const sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
 
-    // X 轴：只显示 HH:MM
     const times = sorted.map(r => {
         const t = r['时间'] || '';
         const parts = t.split(' ');
         return parts.length > 1 ? parts[1] : t;
     });
 
-    // 取最新一条记录，用于生成图例文字
     const latest = sorted[sorted.length - 1];
 
     function legendText(rank) {
@@ -135,8 +138,6 @@ function renderChart(rows, chartInstance, legendContainerId) {
         }));
     }
 
-    const lineColors = ['#ea3690', '#f06aad', '#f7a3cc'];
-
     const series = [1, 2, 3].map((rank, idx) => ({
         name: `第${rank}名`,
         type: 'line',
@@ -152,7 +153,6 @@ function renderChart(rows, chartInstance, legendContainerId) {
 
     const tooltipData = [1, 2, 3].map(rank => buildTooltipData(rank));
 
-    // 图表上方 ①歌手 - 歌名 文字
     if (legendEl) {
         const marks = ['①', '②', '③'];
         legendEl.innerHTML = [1, 2, 3].map((rank, idx) =>
@@ -178,7 +178,7 @@ function renderChart(rows, chartInstance, legendContainerId) {
                 return html;
             }
         },
-        grid: { left: '2%', right: '5%', bottom: '10%', top: '8%', containLabel: true },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
         xAxis: {
             type: 'category',
             boundaryGap: false,
@@ -213,8 +213,12 @@ Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
         const dailyRows = data.filter(r => r['榜单类型'] === '日榜');
         const weeklyRows = data.filter(r => r['榜单类型'] === '周榜');
 
+        // 先渲染数据，再让 ECharts 按容器实际尺寸 resize
         renderChart(dailyRows, chartDaily, 'dailyLegend');
         renderChart(weeklyRows, chartWeekly, 'weeklyLegend');
+
+        chartDaily.resize();
+        chartWeekly.resize();
 
         const allTimes = data.map(r => r['时间']).filter(Boolean).sort();
         if (allTimes.length) {
@@ -232,8 +236,8 @@ let resizeTimer;
 window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function() {
-        chartDaily.resize({ width: 900, height: 350 });
-        chartWeekly.resize({ width: 900, height: 350 });
+        chartDaily.resize();
+        chartWeekly.resize();
     }, 200);
 });
 </script>
