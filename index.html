@@ -32,7 +32,7 @@
     .charts-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表，等宽、等高 */
+    /* 得分行：左表格 + 右图表，等高等宽 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px;
         align-items: stretch;
@@ -57,7 +57,7 @@
     .chart-wrapper { width: 100%; height: 350px; }
     .chart-wrapper-sm { width: 100%; height: 300px; }
 
-    /* 得分卡片：等高 + 图表填满 */
+    /* 得分卡片：等高 + 内容填满 */
     .score-table-col .card { height: 100%; }
     .score-table-col .table-scroll-box {
         flex: 1 1 auto; overflow-y: auto; overflow-x: auto; min-height: 0;
@@ -77,6 +77,7 @@
     .recent-table th, .recent-table td {
         padding: 6px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
     }
+    /* 表头颜色统一 */
     .recent-table th {
         background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold; font-size: 11px;
         position: sticky; top: 0;
@@ -85,7 +86,9 @@
         text-align: left; padding-left: 8px; color: #666;
         position: sticky; left: 0; background: white; z-index: 1;
     }
-    .recent-table th:first-child { background: rgba(234,54,144,0.10); z-index: 2; }
+    .recent-table th:first-child {
+        background: rgba(234,54,144,0.10); color: #ea3690; z-index: 2;
+    }
     .recent-table tr:nth-child(even) td:first-child { background: #fdf8fb; }
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
@@ -239,6 +242,13 @@ function colorClass(v) {
     return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
 }
 
+// 时间去掉年份：2026/11/03 10:15 -> 11/03 10:15
+function formatShortTime(t) {
+    if (!t) return '';
+    return t.replace(/^\d{4}\//, '');
+}
+
+// 最近 10 条表格
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -248,7 +258,7 @@ function renderRecentTable(rows, tbodyId) {
     const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
     const recent = sorted.slice(0, 10);
     tbody.innerHTML = recent.map(r => {
-        const cells = [`<td>${r['时间'] || ''}</td>`];
+        const cells = [`<td>${formatShortTime(r['时间'])}</td>`];
         for (let i = 1; i <= 3; i++) {
             const score = r[`第${i}名得分`] || '';
             const change = r[`第${i}名官方增幅`] || '';
