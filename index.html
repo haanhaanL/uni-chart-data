@@ -94,7 +94,7 @@
         border-collapse: collapse;
         font-size: 12px;
         table-layout: fixed;
-        min-width: 720px;      /* ★ 保证 7 列宽度，窄屏横向滚动 */
+        min-width: 720px;
     }
     .recent-table th, .recent-table td {
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
@@ -110,9 +110,14 @@
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 1px 0 #f3e6ee;
     }
+    /* ★ 第一列 sticky：不透明背景，奇偶行区分，避免重合 */
     .recent-table td:first-child {
         position: sticky; left: 0; z-index: 1;
         color: #555;
+        background-color: #ffffff;
+    }
+    .recent-table tbody tr:nth-child(even) td:first-child {
+        background-color: #fdf7fa;   /* 等效于 #ea36900a 叠白 */
     }
     .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
@@ -131,7 +136,6 @@
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 
-    /* ---------- 移动端自适应 ---------- */
     @media (max-width: 900px) {
         .score-row { flex-direction: column; align-items: stretch; }
         .score-table-col, .score-chart-col {
@@ -143,7 +147,6 @@
         .score-table-col .card { max-height: 420px; overflow: hidden; }
         .chart-wrapper-flex { height: 280px; flex: none; }
 
-        /* ★ 移动端表格横向滚动，避免挤在一起 */
         .table-scroll-box { overflow-x: auto; overflow-y: auto; }
         .recent-table { min-width: 720px; font-size: 11px; }
         .recent-table th, .recent-table td { padding: 6px 4px; }
