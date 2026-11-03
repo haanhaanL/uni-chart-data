@@ -33,6 +33,11 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
+    /* 得分行：左表格 + 右图表 */
+    .score-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
+    .score-table-col { flex: 0 0 420px; min-width: 320px; max-width: 100%; }
+    .score-chart-col { flex: 1 1 480px; min-width: 0; }
+
     .card {
         background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
         padding: 12px 0; overflow: hidden; border: 1px solid rgba(234,54,144,0.10);
@@ -48,6 +53,28 @@
     }
     .chart-wrapper { width: 100%; height: 350px; }
     .chart-wrapper-sm { width: 100%; height: 300px; }
+
+    /* 最近10条表格 */
+    .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll-box::-webkit-scrollbar { display: none; }
+    .recent-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 400px; }
+    .recent-table th, .recent-table td {
+        padding: 6px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
+    }
+    .recent-table th {
+        background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold; font-size: 11px;
+        position: sticky; top: 0;
+    }
+    .recent-table td:first-child, .recent-table th:first-child {
+        text-align: left; padding-left: 8px; color: #666;
+        position: sticky; left: 0; background: white; z-index: 1;
+    }
+    .recent-table th:first-child { background: rgba(234,54,144,0.10); z-index: 2; }
+    .recent-table tr:nth-child(even) td:first-child { background: #fdf8fb; }
+    .val-score { font-weight: bold; color: #333; }
+    .up { color: #e74c3c; font-weight: bold; }
+    .down { color: #27ae60; font-weight: bold; }
+
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
 </head>
@@ -58,16 +85,33 @@
     <div id="loading">正在加载数据...</div>
 
     <div id="content" style="display:none;">
-        <!-- Tab 按钮：周榜在前，默认激活 -->
         <div class="tab-bar">
             <button class="tab-btn active" data-tab="weekly">📆 周榜</button>
             <button class="tab-btn" data-tab="daily">📅 日榜</button>
         </div>
 
-        <!-- 周榜面板（默认显示） -->
+        <!-- 周榜面板 -->
         <div class="tab-panel active" id="panel-weekly">
-            <div class="charts-row">
-                <div class="chart-col-1">
+            <div class="score-row">
+                <div class="score-table-col">
+                    <div class="card">
+                        <div class="title">周榜 · 最近10条</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>1名得分</th><th>1名增幅</th>
+                                        <th>2名得分</th><th>2名增幅</th>
+                                        <th>3名得分</th><th>3名增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-chart-col">
                     <div class="card">
                         <div class="title">周榜前三得分趋势</div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
@@ -102,8 +146,26 @@
 
         <!-- 日榜面板 -->
         <div class="tab-panel" id="panel-daily">
-            <div class="charts-row">
-                <div class="chart-col-1">
+            <div class="score-row">
+                <div class="score-table-col">
+                    <div class="card">
+                        <div class="title">日榜 · 最近10条</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>1名得分</th><th>1名增幅</th>
+                                        <th>2名得分</th><th>2名增幅</th>
+                                        <th>3名得分</th><th>3名增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-chart-col">
                     <div class="card">
                         <div class="title">日榜前三得分趋势</div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
@@ -153,6 +215,34 @@ const chartWeeklyRecommend = echarts.init(document.getElementById('chartWeeklyRe
 const allCharts = [chartDaily, chartWeekly, chartDailyPlay, chartDailySales,
                    chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend];
 allCharts.forEach(c => c.showLoading());
+
+function colorClass(v) {
+    if (v === undefined || v === null || v === '') return '';
+    const fv = parseFloat(v);
+    if (isNaN(fv)) return '';
+    return fv > 0 ? 'up' : (fv < 0 ? 'down' : '');
+}
+
+// 最近 10 条表格
+function renderRecentTable(rows, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+    const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
+    const recent = sorted.slice(0, 10);
+    tbody.innerHTML = recent.map(r => {
+        const cells = [`<td>${r['时间'] || ''}</td>`];
+        for (let i = 1; i <= 3; i++) {
+            const score = r[`第${i}名得分`] || '';
+            const change = r[`第${i}名官方增幅`] || '';
+            cells.push(`<td class="val-score">${score}</td>`);
+            cells.push(`<td class="${colorClass(change)}">${change}</td>`);
+        }
+        return `<tr>${cells.join('')}</tr>`;
+    }).join('');
+}
 
 function renderChart(rows, chartInst, legendId, field, yName) {
     const legendEl = document.getElementById(legendId);
@@ -273,13 +363,15 @@ function loadCsv(url) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    // 日榜
+    // 日榜：表格 + 得分图 + 三个维度
+    renderRecentTable(dailyRows, 'dailyTableBody');
     renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', '得分');
     renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度', '播放热度');
     renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度', '畅销度');
     renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度', '推荐度');
 
-    // 周榜
+    // 周榜：表格 + 得分图 + 三个维度
+    renderRecentTable(weeklyRows, 'weeklyTableBody');
     renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', '得分');
     renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度', '播放热度');
     renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度', '畅销度');
