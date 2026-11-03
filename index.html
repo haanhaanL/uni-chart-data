@@ -33,9 +33,15 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
-    /* 得分行：左表格 + 右图表 */
-    .score-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
-    .score-table-col { flex: 0 0 420px; min-width: 320px; max-width: 100%; }
+    /* 得分行：左表格 + 右图表，等高拉伸 */
+    .score-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: stretch;
+    }
+    .score-table-col {
+        flex: 0 0 420px; min-width: 320px; max-width: 100%;
+        display: flex; flex-direction: column;
+    }
     .score-chart-col { flex: 1 1 480px; min-width: 0; }
 
     .card {
@@ -55,39 +61,37 @@
     .chart-wrapper-sm { width: 100%; height: 300px; }
 
     /* --- 表格区域：等高、等宽、统一表头颜色、时间去年份 --- */
+    /* 表格列内卡片纵向 flex，撑满列高（与右侧图表等高） */
+    .score-table-col .card {
+        display: flex; flex-direction: column; flex: 1 1 auto;
+    }
     .table-scroll-box {
         width: 100%;
-        /* 取消固定的最小宽度限制，让表格自然撑满父容器 */
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        /* 让滚动盒在父级弹性布局中尽量撑高，与图表区域一致 */
-        display: flex;
-        flex-direction: column;
-        justify-content: stretch;
+        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto; min-height: 0;
+        display: flex; flex-direction: column;
     }
     .table-scroll-box::-webkit-scrollbar { display: none; }
 
     .recent-table {
         width: 100%;
+        height: 100%;
         border-collapse: collapse;
         font-size: 12px;
-        /* 关键：表格宽度100%，保证与图表等宽 */
-        table-layout: fixed; 
-        /* 让表格在垂直方向尽可能填满父容器（滚动盒） */
-        height: 100%;
+        table-layout: fixed;
     }
     .recent-table th, .recent-table td {
-        padding: 6px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
+        padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
+        min-height: 36px; line-height: 1.5;
     }
-    /* 统一表头背景色（与卡片主色调一致） */
+    /* 统一表头背景色 */
     .recent-table th {
-        background-color: rgba(234,54,144,0.10) !important; 
-        color: #ea3690; 
-        font-weight: bold; 
+        background-color: rgba(234,54,144,0.10) !important;
+        color: #ea3690;
+        font-weight: bold;
         font-size: 11px;
-        position: sticky; 
+        position: sticky;
         top: 0;
-        /* 保留表头视觉层次 */
         box-shadow: 0 1px 0 #f3e6ee;
     }
     /* 第一列固定 */
@@ -95,54 +99,14 @@
         text-align: left; padding-left: 8px; color: #666;
         position: sticky; left: 0; background: white; z-index: 1;
     }
-    .recent-table th:first-child { 
-        background: rgba(234,54,144,0.10) !important; 
-        z-index: 2; 
-        /* 保证表头固定列背景与其它表头一致 */
+    .recent-table th:first-child {
+        background: rgba(234,54,144,0.10) !important;
+        z-index: 2;
     }
     .recent-table tr:nth-child(even) td:first-child { background: #fdf8fb; }
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
     .down { color: #27ae60; font-weight: bold; }
-
-    /* 为了让表格垂直方向填满，让 tbody 的行高在必要时拉伸（利用 flex 或 height） */
-    .table-scroll-box .recent-table {
-        height: 100%;
-    }
-    /* 但表格本身无法直接撑满 flex 容器，故给滚动盒一个高度继承父级 */
-    .score-table-col {
-        display: flex;
-        flex-direction: column;
-    }
-    .score-table-col .card {
-        display: flex;
-        flex-direction: column;
-        flex: 1 1 auto;
-        /* 卡片内部也为flex，让table-scroll-box撑满 */
-    }
-    .score-table-col .card .table-scroll-box {
-        flex: 1 1 auto;
-        min-height: 0; /* 防止溢出 */
-        display: flex;
-        flex-direction: column;
-    }
-    .score-table-col .card .table-scroll-box .recent-table {
-        flex: 1 1 auto;
-        height: 100%;
-    }
-    /* 让表格行均匀分布，填充高度（可选，看效果） */
-    .recent-table tbody tr {
-        height: auto; /* 保持自适应 */
-    }
-    /* 避免表格内容被压缩，保留最小行高 */
-    .recent-table td, .recent-table th {
-        min-height: 36px; 
-        line-height: 1.5;
-    }
-    /* 微调表格内边距以保证与图表视觉平衡 */
-    .recent-table th, .recent-table td {
-        padding: 8px 5px;
-    }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
@@ -224,9 +188,9 @@
                                 <thead>
                                     <tr>
                                         <th>时间</th>
-                                        <th>1名得分</th><th>1名增幅</th>
-                                        <th>2名得分</th><th>2名增幅</th>
-                                        <th>3名得分</th><th>3名增幅</th>
+                                        <th>①得分</th><th>①增幅</th>
+                                        <th>②得分</th><th>②增幅</th>
+                                        <th>③得分</th><th>③增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="dailyTableBody"></tbody>
@@ -295,7 +259,6 @@ function colorClass(v) {
 // 将时间字符串中的年份去掉（例如 "2025-03-10" -> "03-10"）
 function stripYear(timeStr) {
     if (!timeStr) return '';
-    // 匹配 YYYY- 或 YYYY/ 开头，替换为空
     return timeStr.replace(/^\d{4}[-/]/, '');
 }
 
@@ -309,7 +272,6 @@ function renderRecentTable(rows, tbodyId) {
     const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
     const recent = sorted.slice(0, 10);
     tbody.innerHTML = recent.map(r => {
-        // 时间列去掉年份
         const displayTime = stripYear(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
         for (let i = 1; i <= 3; i++) {
@@ -322,7 +284,8 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-function renderChart(rows, chartInst, legendId, field, yName) {
+// 渲染图表（已删除 yName 相关参数）
+function renderChart(rows, chartInst, legendId, field) {
     const legendEl = document.getElementById(legendId);
     if (!rows.length) {
         chartInst.hideLoading();
@@ -405,8 +368,6 @@ function renderChart(rows, chartInst, legendId, field, yName) {
         },
         yAxis: {
             type: 'value',
-            name: '',
-            nameTextStyle: { color: '#999', fontSize: 11 },
             scale: true,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
@@ -443,17 +404,17 @@ function loadCsv(url) {
 
     // 日榜：表格 + 得分图 + 三个维度
     renderRecentTable(dailyRows, 'dailyTableBody');
-    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', '得分');
-    renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度', '播放热度');
-    renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度', '畅销度');
-    renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度', '推荐度');
+    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分');
+    renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度');
+    renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度');
+    renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度');
 
     // 周榜：表格 + 得分图 + 三个维度
     renderRecentTable(weeklyRows, 'weeklyTableBody');
-    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', '得分');
-    renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度', '播放热度');
-    renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度', '畅销度');
-    renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度', '推荐度');
+    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分');
+    renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度');
+    renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度');
+    renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度');
 
     allCharts.forEach(c => c.resize());
 
