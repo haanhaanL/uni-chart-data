@@ -8,37 +8,38 @@
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
     body {
-        margin: 0; padding: 8px; background-color: #f5f5f5;
+        margin: 0; padding: 8px; background-color: #faf7f9;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
     }
     .container { width: 100%; max-width: 900px; }
     .card {
-        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
         margin-bottom: 12px; padding: 12px 0; overflow: hidden;
+        border: 1px solid rgba(234,54,144,0.10);
     }
-    h1 { text-align: center; color: #D35400; font-size: 18px; margin: 10px 0; }
-    h3 { text-align: center; color: #D35400; margin: 0 0 10px 0; font-size: 15px; font-weight: bold; }
-    .update-time { text-align: center; color: #888; font-size: 12px; margin-bottom: 12px; }
+    h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
+    h3 { text-align: center; color: #ea3690; margin: 0 0 10px 0; font-size: 15px; font-weight: bold; }
+    .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
     /* 表格滑动框 */
     .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table-scroll-box::-webkit-scrollbar { display: none; }
     table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1000px; }
-    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
+    th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #f3e6ee; white-space: nowrap; }
     th {
-        background-color: #fdf2e9; color: #d35400; font-weight: bold;
+        background-color: rgba(234,54,144,0.10); color: #ea3690; font-weight: bold;
         text-align: center; font-size: 12px; position: sticky; top: 0;
     }
     th:first-child, td:first-child {
         padding-left: 15px; text-align: left; color: #666;
         position: sticky; left: 0; background: white; z-index: 1;
     }
-    th:first-child { background: #fdf2e9; z-index: 2; }
-    tr:nth-child(even) td:first-child { background: #fafafa; }
+    th:first-child { background: rgba(234,54,144,0.10); z-index: 2; }
+    tr:nth-child(even) td:first-child { background: #fdf8fb; }
     .val-name { text-align: left; font-weight: bold; color: #333; }
-    .val-singer { text-align: left; color: #888; font-size: 12px; }
-    .val-score { font-weight: bold; color: #2980b9; }
+    .val-singer { text-align: left; color: #999; font-size: 12px; }
+    .val-score { font-weight: bold; color: #ea3690; }
     .up { color: #e74c3c; font-weight: bold; }
     .down { color: #27ae60; font-weight: bold; }
 
@@ -49,10 +50,10 @@
     .chart-scroll-box::-webkit-scrollbar { display: none; }
     .chart-wrapper { width: 900px; height: 350px; }
     .title {
-        text-align: center; color: #D35400; font-size: 15px; font-weight: bold; margin: 5px 0 10px 0;
+        text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 10px 0;
     }
 
-    #loading { text-align: center; color: #666; font-size: 16px; margin-top: 50px; }
+    #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
 </head>
 <body>
@@ -151,6 +152,7 @@ function renderTable(rows, tbodyId) {
 }
 
 // ====== 图表 ======
+const themeColor = '#ea3690';
 const chartDaily = echarts.init(document.getElementById('chartDaily'), null, { width: 900, height: 350 });
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'), null, { width: 900, height: 350 });
 chartDaily.showLoading();
@@ -175,6 +177,16 @@ function renderChart(rows, chartInstance) {
         return parts.length > 1 ? parts[1] : t;
     });
 
+    // 取最新一条记录，用于生成图例名称（歌名 - 歌手）
+    const latest = sorted[sorted.length - 1];
+
+    function legendName(rank) {
+        const name = latest[`第${rank}名歌名`] || '';
+        const singer = latest[`第${rank}名歌手`] || '';
+        if (!name) return `第${rank}名`;
+        return singer ? `${name} - ${singer}` : name;
+    }
+
     function buildSeriesData(rank) {
         return sorted.map(r => {
             const score = r[`第${rank}名得分`] || '';
@@ -190,15 +202,19 @@ function renderChart(rows, chartInstance) {
         }));
     }
 
-    const series = [1, 2, 3].map(rank => ({
-        name: `第${rank}名`,
+    // 三条线用玫红的不同深浅，保持主题统一
+    const lineColors = ['#ea3690', '#f06aad', '#f7a3cc'];
+
+    const series = [1, 2, 3].map((rank, idx) => ({
+        name: legendName(rank),
         type: 'line',
         data: buildSeriesData(rank),
         smooth: false,
         symbol: 'circle',
         symbolSize: 4,
         connectNulls: false,
-        lineStyle: { width: 2 },
+        itemStyle: { color: lineColors[idx] },
+        lineStyle: { width: 2, color: lineColors[idx] },
         emphasis: { focus: 'series' },
     }));
 
@@ -206,6 +222,7 @@ function renderChart(rows, chartInstance) {
 
     chartInstance.hideLoading();
     chartInstance.setOption({
+        color: lineColors,
         tooltip: {
             trigger: 'axis',
             confine: true,
@@ -221,19 +238,32 @@ function renderChart(rows, chartInstance) {
                 return html;
             }
         },
-        legend: { top: '0%', itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 12 } },
-        grid: { left: '2%', right: '5%', bottom: '10%', top: '15%', containLabel: true },
+        legend: {
+            top: '0%',
+            itemWidth: 12,
+            itemHeight: 8,
+            textStyle: { fontSize: 11, color: '#666' },
+            type: 'scroll',
+            formatter: function(name) {
+                return name.length > 22 ? name.slice(0, 22) + '…' : name;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '10%', top: '18%', containLabel: true },
         xAxis: {
             type: 'category',
             boundaryGap: false,
             data: times,
-            axisLabel: { interval: 'auto', fontSize: 11, rotate: 45 },
+            axisLabel: { interval: 'auto', fontSize: 11, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
         yAxis: {
             type: 'value',
             name: '得分',
+            nameTextStyle: { color: '#999' },
             scale: true,
-            axisLabel: { fontSize: 11 },
+            axisLabel: { fontSize: 11, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
         },
         series: series,
     }, true);
