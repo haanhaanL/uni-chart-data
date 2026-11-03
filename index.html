@@ -34,6 +34,7 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
+    /* 宽屏：表格:图表 = 2:1，固定高 */
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: flex-start;
@@ -129,6 +130,36 @@
     .flat, .down { color: #999; font-weight: bold; }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
+
+    /* ---------- 移动端自适应 ---------- */
+    @media (max-width: 900px) {
+        .score-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+        .score-table-col,
+        .score-chart-col {
+            flex: 1 1 100%;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+        }
+        /* 移动端卡片不再固定高度 */
+        .score-table-col .card,
+        .score-chart-col .card {
+            height: auto;
+            min-height: 0;
+        }
+        /* 表格限制最大高度，内部滚动 */
+        .score-table-col .card {
+            max-height: 420px;
+        }
+        /* 图表容器给确定高度，ECharts 才能渲染 */
+        .chart-wrapper-flex {
+            height: 280px;
+            flex: none;
+        }
+    }
 </style>
 </head>
 <body>
@@ -340,10 +371,8 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         return;
     }
 
-    // 1) 先按时间升序
     let sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
 
-    // 2) 只保留最近 24 小时
     const parseTime = (s) => {
         const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
         if (!m) return null;
@@ -364,13 +393,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
             });
         }
     }
-
-    // 3) 只保留每小时 06 分的数据点
-    sorted = sorted.filter(r => {
-        const s = r['时间'] || '';
-        const m = s.match(/(?:^|[ T])\d{1,2}:(\d{2})/);
-        return m && m[1] === '06';
-    });
 
     if (!sorted.length) {
         chartInst.hideLoading();
@@ -471,7 +493,16 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
             type: 'category',
             boundaryGap: false,
             data: times,
-            axisLabel: { interval: 'auto', fontSize: 10, color: '#888', rotate: 45 },
+            axisLabel: {
+                interval: 0,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+                formatter: function (value) {
+                    const m = String(value).match(/(\d{1,2}):(\d{2})/);
+                    return (m && m[2] === '06') ? value : '';
+                }
+            },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
         yAxis: {
