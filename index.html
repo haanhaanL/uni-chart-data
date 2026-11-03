@@ -43,6 +43,7 @@
         min-width: 280px;
         max-width: 100%;
         display: flex; flex-direction: column;
+        min-height: 0;                  /* ★ 允许收缩 */
     }
     .score-chart-col {
         flex: 1 1 0;
@@ -67,10 +68,13 @@
 
     .score-table-col .card {
         display: flex; flex-direction: column; flex: 1 1 auto;
+        min-height: 0;                  /* ★ 关键 */
+        overflow: hidden;
     }
     .table-scroll-box {
         width: 100%;
-        overflow-x: auto; -webkit-overflow-scrolling: touch;
+        overflow-x: auto; overflow-y: auto;   /* ★ 允许纵向滚动 */
+        -webkit-overflow-scrolling: touch;
         flex: 1 1 auto; min-height: 0;
         display: flex; flex-direction: column;
     }
@@ -87,7 +91,6 @@
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
         min-height: 36px; line-height: 1.5;
     }
-    /* 表头：品牌粉底 + 白字 + 四周边框 */
     .recent-table th {
         background-color: #ea3690 !important;
         color: #ffffff;
@@ -98,7 +101,6 @@
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 时间列：比增幅灰深，非黑 */
     .recent-table td:first-child {
         position: sticky; left: 0; z-index: 1;
         color: #555;
@@ -106,7 +108,6 @@
     .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
     }
-    /* 歌名-歌手列：过长省略，颜色 #555 */
     .recent-table .song-cell {
         max-width: 130px;
         white-space: nowrap;
@@ -294,7 +295,6 @@ function stripYear(timeStr) {
     return timeStr.replace(/^\d{4}[-/]/, '');
 }
 
-// 最近 10 条表格（方案二：歌名-歌手 + 得分 / 增幅）
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -320,7 +320,6 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-// 按“歌手-歌名”绑定折线
 function renderChart(rows, chartInst, legendId, field, yInterval) {
     const legendEl = document.getElementById(legendId);
     if (!rows.length) {
