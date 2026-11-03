@@ -12,12 +12,13 @@
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
     }
-    .container { width: 100%; max-width: 1400px; }
+    .container { width: 100%; max-width: 1600px; }
     h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
-    .charts-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; }
-    .chart-col { flex: 1 1 520px; min-width: 0; }
+    .charts-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
+    .chart-col-2 { flex: 1 1 480px; min-width: 0; }
+    .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
     .card {
         background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -26,14 +27,15 @@
     .title { text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 8px 0; }
     .chart-legend-text {
         text-align: center; font-size: 12px; color: #666;
-        margin: 0 10px 6px 10px; line-height: 1.8;
+        margin: 0 8px 6px 8px; line-height: 1.8;
     }
-    .chart-legend-text .item { display: inline-block; margin: 0 6px; }
+    .chart-legend-text .item { display: inline-block; margin: 0 5px; }
     .chart-legend-text .dot {
         display: inline-block; width: 8px; height: 8px; border-radius: 50%;
         margin-right: 4px; vertical-align: middle;
     }
     .chart-wrapper { width: 100%; height: 350px; }
+    .chart-wrapper-sm { width: 100%; height: 300px; }
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 </style>
 </head>
@@ -43,15 +45,17 @@
     <div class="update-time" id="updateTime"></div>
     <div id="loading">正在加载数据...</div>
     <div id="content" style="display:none;">
+
+        <!-- 第一行：日榜/周榜 得分趋势 -->
         <div class="charts-row">
-            <div class="chart-col">
+            <div class="chart-col-2">
                 <div class="card">
                     <div class="title">📅 日榜前三得分趋势</div>
                     <div class="chart-legend-text" id="dailyLegend"></div>
                     <div class="chart-wrapper" id="chartDaily"></div>
                 </div>
             </div>
-            <div class="chart-col">
+            <div class="chart-col-2">
                 <div class="card">
                     <div class="title">📆 周榜前三得分趋势</div>
                     <div class="chart-legend-text" id="weeklyLegend"></div>
@@ -59,23 +63,82 @@
                 </div>
             </div>
         </div>
+
+        <!-- 第二行：日榜三个维度，一行三个 -->
+        <div class="charts-row">
+            <div class="chart-col-3">
+                <div class="card">
+                    <div class="title">📅 日榜 · 播放热度</div>
+                    <div class="chart-legend-text" id="dailyPlayLegend"></div>
+                    <div class="chart-wrapper-sm" id="chartDailyPlay"></div>
+                </div>
+            </div>
+            <div class="chart-col-3">
+                <div class="card">
+                    <div class="title">📅 日榜 · 畅销度</div>
+                    <div class="chart-legend-text" id="dailySalesLegend"></div>
+                    <div class="chart-wrapper-sm" id="chartDailySales"></div>
+                </div>
+            </div>
+            <div class="chart-col-3">
+                <div class="card">
+                    <div class="title">📅 日榜 · 推荐度</div>
+                    <div class="chart-legend-text" id="dailyRecommendLegend"></div>
+                    <div class="chart-wrapper-sm" id="chartDailyRecommend"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 第三行：周榜三个维度，一行三个 -->
+        <div class="charts-row">
+            <div class="chart-col-3">
+                <div class="card">
+                    <div class="title">📆 周榜 · 播放热度</div>
+                    <div class="chart-legend-text" id="weeklyPlayLegend"></div>
+                    <div class="chart-wrapper-sm" id="chartWeeklyPlay"></div>
+                </div>
+            </div>
+            <div class="chart-col-3">
+                <div class="card">
+                    <div class="title">📆 周榜 · 畅销度</div>
+                    <div class="chart-legend-text" id="weeklySalesLegend"></div>
+                    <div class="chart-wrapper-sm" id="chartWeeklySales"></div>
+                </div>
+            </div>
+            <div class="chart-col-3">
+                <div class="card">
+                    <div class="title">📆 周榜 · 推荐度</div>
+                    <div class="chart-legend-text" id="weeklyRecommendLegend"></div>
+                    <div class="chart-wrapper-sm" id="chartWeeklyRecommend"></div>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
 
 <script>
+// 三条线颜色：粉 / 紫 / 橙
+const lineColors = ['#ea3690', '#7c3aed', '#e74c3c'];
+
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
-chartDaily.showLoading();
-chartWeekly.showLoading();
+const chartDailyPlay = echarts.init(document.getElementById('chartDailyPlay'));
+const chartDailySales = echarts.init(document.getElementById('chartDailySales'));
+const chartDailyRecommend = echarts.init(document.getElementById('chartDailyRecommend'));
+const chartWeeklyPlay = echarts.init(document.getElementById('chartWeeklyPlay'));
+const chartWeeklySales = echarts.init(document.getElementById('chartWeeklySales'));
+const chartWeeklyRecommend = echarts.init(document.getElementById('chartWeeklyRecommend'));
 
-// 三条线颜色：玫红 / 绿 / 金橙，不含蓝色
-const lineColors = ['#ea3690', '#1f9d55', '#e6a23c'];
+const allCharts = [chartDaily, chartWeekly, chartDailyPlay, chartDailySales,
+                   chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend];
+allCharts.forEach(c => c.showLoading());
 
-function renderChart(rows, chartInstance, legendContainerId) {
-    const legendEl = document.getElementById(legendContainerId);
+function renderChart(rows, chartInst, legendId, field, yName) {
+    const legendEl = document.getElementById(legendId);
     if (!rows.length) {
-        chartInstance.hideLoading();
-        chartInstance.setOption({
+        chartInst.hideLoading();
+        chartInst.setOption({
             title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
         }, true);
         if (legendEl) legendEl.innerHTML = '';
@@ -99,20 +162,9 @@ function renderChart(rows, chartInstance, legendContainerId) {
 
     function seriesData(rank) {
         return sorted.map(r => {
-            const s = r[`第${rank}名得分`] || '';
+            const s = r[`第${rank}名${field}`] || '';
             return s === '' ? null : parseFloat(s);
         });
-    }
-
-    function tooltipData(rank) {
-        return sorted.map(r => ({
-            name: r[`第${rank}名歌名`] || '',
-            singer: r[`第${rank}名歌手`] || '',
-            score: r[`第${rank}名得分`] || '',
-            play: r[`第${rank}名播放热度`] || '',
-            sales: r[`第${rank}名畅销度`] || '',
-            recommend: r[`第${rank}名推荐度`] || '',
-        }));
     }
 
     const series = [1, 2, 3].map((rank, idx) => ({
@@ -121,14 +173,12 @@ function renderChart(rows, chartInstance, legendContainerId) {
         data: seriesData(rank),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 4,
+        symbolSize: 3,
         connectNulls: false,
         itemStyle: { color: lineColors[idx] },
         lineStyle: { width: 2, color: lineColors[idx] },
         emphasis: { focus: 'series' },
     }));
-
-    const tt = [1, 2, 3].map(rank => tooltipData(rank));
 
     if (legendEl) {
         const marks = ['①', '②', '③'];
@@ -137,8 +187,8 @@ function renderChart(rows, chartInstance, legendContainerId) {
         ).join('');
     }
 
-    chartInstance.hideLoading();
-    chartInstance.setOption({
+    chartInst.hideLoading();
+    chartInst.setOption({
         color: lineColors,
         tooltip: {
             trigger: 'axis',
@@ -149,9 +199,10 @@ function renderChart(rows, chartInstance, legendContainerId) {
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[i]['时间']}</div>`;
                 params.forEach(p => {
                     const rank = p.seriesIndex + 1;
-                    const d = tt[p.seriesIndex][i];
-                    html += `<div style="margin-bottom:3px;">${p.marker} 第${rank}名：${d.singer ? d.singer + ' - ' : ''}${d.name} <b>${d.score}</b><br>`
-                          + `<span style="color:#888;font-size:11px;">播放热度 ${d.play}｜畅销度 ${d.sales}｜推荐度 ${d.recommend}</span></div>`;
+                    const name = sorted[i][`第${rank}名歌名`] || '';
+                    const singer = sorted[i][`第${rank}名歌手`] || '';
+                    const val = sorted[i][`第${rank}名${field}`] || '';
+                    html += `<div>${p.marker} 第${rank}名：${singer ? singer + ' - ' : ''}${name} <b>${val}</b></div>`;
                 });
                 return html;
             }
@@ -161,15 +212,15 @@ function renderChart(rows, chartInstance, legendContainerId) {
             type: 'category',
             boundaryGap: false,
             data: times,
-            axisLabel: { interval: 'auto', fontSize: 11, color: '#888', rotate: 45 },
+            axisLabel: { interval: 'auto', fontSize: 10, color: '#888', rotate: 45 },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
         yAxis: {
             type: 'value',
-            name: '得分',
-            nameTextStyle: { color: '#999' },
+            name: yName,
+            nameTextStyle: { color: '#999', fontSize: 11 },
             scale: true,
-            axisLabel: { fontSize: 11, color: '#888' },
+            axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
         },
@@ -190,10 +241,21 @@ Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
         const dailyRows = data.filter(r => r['榜单类型'] === '日榜');
         const weeklyRows = data.filter(r => r['榜单类型'] === '周榜');
 
-        renderChart(dailyRows, chartDaily, 'dailyLegend');
-        renderChart(weeklyRows, chartWeekly, 'weeklyLegend');
-        chartDaily.resize();
-        chartWeekly.resize();
+        // 得分趋势
+        renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', '得分');
+        renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', '得分');
+
+        // 日榜三个维度
+        renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度', '播放热度');
+        renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度', '畅销度');
+        renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度', '推荐度');
+
+        // 周榜三个维度
+        renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度', '播放热度');
+        renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度', '畅销度');
+        renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度', '推荐度');
+
+        allCharts.forEach(c => c.resize());
 
         const allTimes = data.map(r => r['时间']).filter(Boolean).sort();
         if (allTimes.length) {
@@ -210,8 +272,7 @@ let resizeTimer;
 window.addEventListener('resize', function() {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function() {
-        chartDaily.resize();
-        chartWeekly.resize();
+        allCharts.forEach(c => c.resize());
     }, 200);
 });
 </script>
