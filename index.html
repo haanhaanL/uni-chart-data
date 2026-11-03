@@ -87,28 +87,32 @@
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
         min-height: 36px; line-height: 1.5;
     }
+    /* 表头：品牌粉底 + 白字 */
     .recent-table th {
-        background-color: rgba(234,54,144,0.10) !important;
-        color: #ea3690;
+        background-color: #ea3690 !important;
+        color: #ffffff;
         font-weight: bold;
         font-size: 11px;
         position: sticky;
         top: 0;
         box-shadow: 0 1px 0 #f3e6ee;
     }
+    /* 时间列：比增幅灰深，非黑 */
     .recent-table td:first-child {
         position: sticky; left: 0; z-index: 1;
+        color: #555;
     }
     .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
     }
-    /* 歌名-歌手列：过长省略 */
+    /* 歌名-歌手列：过长省略，颜色 #555 */
     .recent-table .song-cell {
         max-width: 130px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
         text-align: left;
+        color: #555;
     }
     .val-score { font-weight: bold; color: #333; }
     .up { color: #e74c3c; font-weight: bold; }
