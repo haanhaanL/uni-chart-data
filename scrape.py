@@ -10,7 +10,6 @@ URL_UNI_CHART = "https://yobang.tencentmusic.com/chart/enter.html?platform=qy&fr
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE = os.path.join(BASE_DIR, "uni_chart_data.csv")
-HTML_FILE = os.path.join(BASE_DIR, "index.html")
 
 BJT = timezone(timedelta(hours=8))
 
@@ -130,76 +129,6 @@ def append_rows(rows_to_add):
         print(f"✅ 写入 [{r[1]}] {r[0]}")
 
 
-# ============ HTML 生成 ============
-def generate_html():
-    """读取 CSV，生成日榜/周榜两张表格的 index.html"""
-    _, data_rows = load_all_rows()
-
-    daily_rows = [r for r in data_rows if len(r) > 1 and r[1] == "日榜"]
-    weekly_rows = [r for r in data_rows if len(r) > 1 and r[1] == "周榜"]
-
-    table_header = ["时间"]
-    for n in ("1", "2", "3"):
-        table_header += [f"第{n}名", f"{n}名得分", f"{n}名官方增幅"]
-
-    def render_table(rows, title):
-        html = [f'<h2>{title}</h2>', '<table>',
-                '<thead><tr>' + ''.join(f'<th>{h}</th>' for h in table_header) + '</tr></thead>',
-                '<tbody>']
-        for r in reversed(rows):
-            cells = [f'<td>{r[0]}</td>']
-            for i in range(3):
-                name = r[2 + i * 3] if len(r) > 2 + i * 3 else ""
-                score = r[3 + i * 3] if len(r) > 3 + i * 3 else ""
-                page_change = r[4 + i * 3] if len(r) > 4 + i * 3 else ""
-
-                def color_class(v):
-                    if v == "":
-                        return ""
-                    try:
-                        fv = float(v)
-                        return "up" if fv > 0 else ("down" if fv < 0 else "")
-                    except ValueError:
-                        return ""
-
-                cells.append(f'<td>{name}</td>')
-                cells.append(f'<td>{score}</td>')
-                cells.append(f'<td class="{color_class(page_change)}">{page_change}</td>')
-            html.append('<tr>' + ''.join(cells) + '</tr>')
-        html.append('</tbody></table>')
-        return "\n".join(html)
-
-    html_content = f"""<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>腾讯音乐由你榜 · 前三追踪</title>
-<style>
-  body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 20px; background: #f5f6f8; }}
-  h1 {{ text-align: center; }}
-  h2 {{ margin-top: 30px; }}
-  table {{ border-collapse: collapse; width: 100%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.08); }}
-  th, td {{ border: 1px solid #e0e0e0; padding: 8px 10px; text-align: center; font-size: 14px; }}
-  th {{ background: #2b6cb0; color: #fff; }}
-  tr:nth-child(even) {{ background: #f9fafb; }}
-  .up {{ color: #e53e3e; }}
-  .down {{ color: #38a169; }}
-</style>
-</head>
-<body>
-<h1>腾讯音乐由你榜 · 日榜/周榜前三追踪</h1>
-<p style="text-align:center;color:#888;">最后生成：{datetime.now(BJT).strftime('%Y/%m/%d %H:%M')}（北京时间）</p>
-{render_table(daily_rows, "📅 日榜")}
-{render_table(weekly_rows, "📆 周榜")}
-</body>
-</html>
-"""
-    with open(HTML_FILE, "w", encoding="utf-8") as f:
-        f.write(html_content)
-    print(f"✅ 已生成 {os.path.basename(HTML_FILE)}")
-
-
 # ============ 主流程 ============
 async def run_once():
     async with async_playwright() as p:
@@ -222,13 +151,11 @@ async def run_once():
         build_row("日榜", daily_top3),
         build_row("周榜", weekly_top3),
     ]
-
     append_rows(rows_to_add)
-    generate_html()
 
 
 async def main():
-    print("开始执行由你榜抓取（官方增幅版，单 CSV + HTML 双表）...")
+    print("开始执行由你榜抓取（15分钟粒度，仅写 CSV）...")
     try:
         await run_once()
         print("任务完成。")
