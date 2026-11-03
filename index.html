@@ -101,7 +101,6 @@
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
         min-height: 36px; line-height: 1.5;
     }
-    /* 普通表头 */
     .recent-table th {
         background-color: #ea3690 !important;
         color: #ffffff;
@@ -113,7 +112,7 @@
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 只固定表头第一行第一列（时间，rowspan=2） */
+    /* 只固定表头第一行第一列（时间） */
     .recent-table thead tr:first-child th:first-child {
         position: sticky !important;
         top: 0 !important;
@@ -123,7 +122,6 @@
         color: #ffffff !important;
         border: 1px solid rgba(255, 255, 255, 0.3);
     }
-    /* 数据区第一列 */
     .recent-table td:first-child {
         position: sticky;
         left: 0;
@@ -151,7 +149,6 @@
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 
-    /* 图表范围切换按钮 */
     .range-tabs {
         display: flex; justify-content: center; gap: 8px; margin: 2px 0 6px 0;
     }
@@ -313,7 +310,7 @@
                         <div class="title">日榜前三得分趋势</div>
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">今天0-23</button>
+                            <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
                         </div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
@@ -326,7 +323,7 @@
                         <div class="title">日榜 · 播放热度</div>
                         <div class="range-tabs" data-chart="dailyPlay">
                             <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">今天0-23</button>
+                            <button class="range-btn" data-range="today">--</button>
                         </div>
                         <div class="chart-legend-text" id="dailyPlayLegend"></div>
                         <div class="chart-wrapper" id="chartDailyPlay"></div>
@@ -337,7 +334,7 @@
                         <div class="title">日榜 · 畅销度</div>
                         <div class="range-tabs" data-chart="dailySales">
                             <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">今天0-23</button>
+                            <button class="range-btn" data-range="today">--</button>
                         </div>
                         <div class="chart-legend-text" id="dailySalesLegend"></div>
                         <div class="chart-wrapper" id="chartDailySales"></div>
@@ -348,7 +345,7 @@
                         <div class="title">日榜 · 推荐度</div>
                         <div class="range-tabs" data-chart="dailyRecommend">
                             <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">今天0-23</button>
+                            <button class="range-btn" data-range="today">--</button>
                         </div>
                         <div class="chart-legend-text" id="dailyRecommendLegend"></div>
                         <div class="chart-wrapper" id="chartDailyRecommend"></div>
@@ -398,6 +395,32 @@ function parseTime(s) {
     );
 }
 
+// 日榜“当日”日期：每天 0:10 前仍算前一天
+function getTodayDateForDaily() {
+    const now = new Date();
+    const effective = new Date(now);
+    if (now.getHours() === 0 && now.getMinutes() < 10) {
+        effective.setDate(effective.getDate() - 1);
+    }
+    return effective;
+}
+
+function fmtDateLabel(d) {
+    return `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function fmtDateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 更新日榜“当日日期”按钮文字
+function refreshDailyDateButtons() {
+    const label = fmtDateLabel(getTodayDateForDaily());
+    document.querySelectorAll('.range-tabs[data-chart^="daily"] .range-btn[data-range="today"]').forEach(btn => {
+        btn.textContent = label;
+    });
+}
+
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -426,9 +449,9 @@ function renderRecentTable(rows, tbodyId) {
 
 /**
  * range:
- *  '3'     -> 最近3小时，全部原始数据点
+ *  '3'     -> 最近3小时，全部原始点
  *  '24'    -> 最近24小时，每小时06分（周榜）
- *  'today' -> 今天0-23点，每小时06分（日榜）
+ *  'today' -> 当天0-24，每小时06分（日榜）；0点用当天00:16，24点用次日00:06
  */
 function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
     range = range || '3';
@@ -451,33 +474,52 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             const p = t.split(' ');
             return p.length > 1 ? p[1] : t;
         });
-    } else {
-        // '24' 或 'today'：按每小时06分生成时间轴，缺失留空
+    } else if (range === '24') {
+        // 最近24小时（周榜）
         const byMin06 = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
             if (!t) return;
             if (t.getMinutes() !== 6) return;
-            const key = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:06`;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:06`;
             byMin06[key] = r;
+        });
+        const axis = [];
+        for (let i = 23; i >= 0; i--) {
+            const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+            const key = `${fmtDateKey(d)} ${String(d.getHours()).padStart(2, '0')}:06`;
+            axis.push({ key, label: `${String(d.getHours()).padStart(2, '0')}:06`, row: byMin06[key] || null });
+        }
+        rowsByColumn = axis.map(a => a.row);
+        times = axis.map(a => a.label);
+    } else {
+        // 'today'：当天0-24，每小时06分；0点用00:16，24点用次日00:06
+        const baseDay = getTodayDateForDaily();
+        const nextDay = new Date(baseDay);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        // 建立所有需要的 key -> 行
+        const rowByKey = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            rowByKey[key] = r;
         });
 
         const axis = [];
-        if (range === '24') {
-            // 最近24小时：以当前时间为基准往前24小时
-            for (let i = 23; i >= 0; i--) {
-                const d = new Date(now.getTime() - i * 60 * 60 * 1000);
-                const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:06`;
-                axis.push({ key, label: `${String(d.getHours()).padStart(2,'0')}:06`, row: byMin06[key] || null });
-            }
-        } else {
-            // 'today'：今天0-23点
-            const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
-            for (let h = 0; h < 24; h++) {
-                const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')} ${String(h).padStart(2,'0')}:06`;
-                axis.push({ key, label: `${String(h).padStart(2,'0')}:06`, row: byMin06[key] || null });
-            }
+        // 00:06 用当天 00:16
+        const key00 = `${fmtDateKey(baseDay)} 00:16`;
+        axis.push({ key: key00, label: '00:06', row: rowByKey[key00] || null });
+        // 01:06 ~ 23:06 用当天对应小时 06
+        for (let h = 1; h <= 23; h++) {
+            const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
+            axis.push({ key, label: `${String(h).padStart(2, '0')}:06`, row: rowByKey[key] || null });
         }
+        // 24:00 用次日 00:06
+        const key24 = `${fmtDateKey(nextDay)} 00:06`;
+        axis.push({ key: key24, label: '24:00', row: rowByKey[key24] || null });
+
         rowsByColumn = axis.map(a => a.row);
         times = axis.map(a => a.label);
     }
@@ -622,7 +664,6 @@ function loadCsv(url) {
 let dailyRowsCache = [];
 let weeklyRowsCache = [];
 
-// 各图表当前 range 状态
 const chartState = {
     weeklyScore: '3',
     weeklyPlay: '3',
@@ -634,7 +675,6 @@ const chartState = {
     dailyRecommend: '3',
 };
 
-// 图表配置表：key -> { chart, legendId, field, yInterval, mode, rowsGetter }
 const chartConfig = {
     weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '得分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
     weeklyPlay:      { chart: chartWeeklyPlay,      legend: 'weeklyPlayLegend',      field: '播放热度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
@@ -652,7 +692,14 @@ function renderChartByKey(key) {
     renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode);
 }
 
+// 页面初始及每分钟刷新日榜日期按钮（跨 0:10 后自动变）
+function updateDailyDateLabels() {
+    refreshDailyDateButtons();
+}
+
 (async function init() {
+    updateDailyDateLabels();
+
     const [dailyRows, weeklyRows] = await Promise.all([
         loadCsv('uni_chart_daily.csv'),
         loadCsv('uni_chart_weekly.csv'),
@@ -667,7 +714,6 @@ function renderChartByKey(key) {
     renderRecentTable(dailyRows, 'dailyTableBody');
     renderRecentTable(weeklyRows, 'weeklyTableBody');
 
-    // 初始渲染所有图表（默认最近3小时）
     Object.keys(chartConfig).forEach(key => renderChartByKey(key));
 
     allCharts.forEach(c => c.resize());
@@ -676,9 +722,11 @@ function renderChartByKey(key) {
     if (allTimes.length) {
         document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
     }
+
+    // 每分钟刷新日榜日期按钮文字（0:10 后自动切换）
+    setInterval(updateDailyDateLabels, 60 * 1000);
 })();
 
-// Tab 切换
 document.querySelectorAll('.range-tabs').forEach(wrap => {
     wrap.querySelectorAll('.range-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -692,7 +740,6 @@ document.querySelectorAll('.range-tabs').forEach(wrap => {
     });
 });
 
-// 周榜/日榜 大 tab 切换
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
