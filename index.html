@@ -98,17 +98,15 @@
         top: 0;
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 第一列仅 td 固定 */
+    /* 第一列固定，背景继承所在行（不再单独设色） */
     .recent-table td:first-child {
         text-align: left; padding-left: 8px; color: #666;
-        position: sticky; left: 0; background: white; z-index: 1;
+        position: sticky; left: 0; z-index: 1;
+        background: inherit;
     }
-    /* 双数数据行背景色（含第一列）——透明度再降15% */
+    /* 双数数据行背景色 */
     .recent-table tbody tr:nth-child(even) {
-        background-color: #ea369011;
-    }
-    .recent-table tbody tr:nth-child(even) td:first-child {
-        background-color: #ea369011;
+        background-color: #ea36900a;
     }
     /* 数值与涨跌颜色 */
     .val-score { font-weight: bold; color: #333; }
@@ -354,13 +352,16 @@ function renderChart(rows, chartInst, legendId, field) {
             formatter: function(params) {
                 if (!params.length) return '';
                 const i = params[0].dataIndex;
+                const marks = ['①', '②', '③'];
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[i]['时间']}</div>`;
                 params.forEach(p => {
                     const rank = p.seriesIndex + 1;
+                    const mark = marks[p.seriesIndex];
                     const name = sorted[i][`第${rank}名歌名`] || '';
                     const singer = sorted[i][`第${rank}名歌手`] || '';
                     const val = sorted[i][`第${rank}名${field}`] || '';
-                    html += `<div>${p.marker} 第${rank}名：${singer ? singer + ' - ' : ''}${name} <b>${val}</b></div>`;
+                    const songInfo = singer ? `${singer}-${name}` : name;
+                    html += `<div>${p.marker} ${mark}：${val} ${songInfo}</div>`;
                 });
                 return html;
             }
