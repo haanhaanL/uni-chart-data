@@ -14,12 +14,12 @@ HTML_FILE = os.path.join(BASE_DIR, "index.html")
 
 BJT = timezone(timedelta(hours=8))
 
-# 表头：每名占 4 列（歌名、得分、官方增幅、自算差值）
+# 表头：每名占 3 列（歌名、得分、官方增幅）
 HEADER = [
     "时间", "榜单类型",
-    "第1名歌名", "第1名得分", "第1名官方增幅", "第1名自算差值",
-    "第2名歌名", "第2名得分", "第2名官方增幅", "第2名自算差值",
-    "第3名歌名", "第3名得分", "第3名官方增幅", "第3名自算差值",
+    "第1名歌名", "第1名得分", "第1名官方增幅",
+    "第2名歌名", "第2名得分", "第2名官方增幅",
+    "第3名歌名", "第3名得分", "第3名官方增幅",
 ]
 
 
@@ -87,16 +87,7 @@ def load_all_rows():
     return rows[0], rows[1:]
 
 
-def load_last_row_by_type(chart_type):
-    """取指定榜单类型的最后一条记录，用于算差值"""
-    _, data_rows = load_all_rows()
-    for row in reversed(data_rows):
-        if len(row) > 1 and row[1] == chart_type:
-            return row
-    return None
-
-
-def build_row(chart_type, top3, prev_row):
+def build_row(chart_type, top3):
     now_str = datetime.now(BJT).strftime("%Y/%m/%d %H:%M")
     row = [now_str, chart_type]
     for i in range(3):
@@ -106,18 +97,7 @@ def build_row(chart_type, top3, prev_row):
             page_change = top3[i].get("page_change", "")
         else:
             name, score, page_change = "", "", ""
-
-        delta = ""
-        if prev_row and name and score != "":
-            try:
-                prev_name = prev_row[2 + i * 4]
-                prev_score = prev_row[3 + i * 4]
-                if prev_name == name and prev_score != "":
-                    delta = round(score - float(prev_score), 2)
-            except (IndexError, ValueError):
-                pass
-
-        row.extend([name, score if score != "" else "", page_change, delta])
+        row.extend([name, score if score != "" else "", page_change])
     return row
 
 
@@ -160,7 +140,7 @@ def generate_html():
 
     table_header = ["时间"]
     for n in ("1", "2", "3"):
-        table_header += [f"第{n}名", f"{n}名得分", f"{n}名官方增幅", f"{n}名自算差值"]
+        table_header += [f"第{n}名", f"{n}名得分", f"{n}名官方增幅"]
 
     def render_table(rows, title):
         html = [f'<h2>{title}</h2>', '<table>',
@@ -169,10 +149,9 @@ def generate_html():
         for r in reversed(rows):
             cells = [f'<td>{r[0]}</td>']
             for i in range(3):
-                name = r[2 + i * 4] if len(r) > 2 + i * 4 else ""
-                score = r[3 + i * 4] if len(r) > 3 + i * 4 else ""
-                page_change = r[4 + i * 4] if len(r) > 4 + i * 4 else ""
-                delta = r[5 + i * 4] if len(r) > 5 + i * 4 else ""
+                name = r[2 + i * 3] if len(r) > 2 + i * 3 else ""
+                score = r[3 + i * 3] if len(r) > 3 + i * 3 else ""
+                page_change = r[4 + i * 3] if len(r) > 4 + i * 3 else ""
 
                 def color_class(v):
                     if v == "":
@@ -186,7 +165,6 @@ def generate_html():
                 cells.append(f'<td>{name}</td>')
                 cells.append(f'<td>{score}</td>')
                 cells.append(f'<td class="{color_class(page_change)}">{page_change}</td>')
-                cells.append(f'<td class="{color_class(delta)}">{delta}</td>')
             html.append('<tr>' + ''.join(cells) + '</tr>')
         html.append('</tbody></table>')
         return "\n".join(html)
@@ -240,17 +218,17 @@ async def run_once():
         )
         await browser.close()
 
-    rows_to_add = []
-    for chart_type, top3 in (("日榜", daily_top3), ("周榜", weekly_top3)):
-        prev_row = load_last_row_by_type(chart_type)
-        rows_to_add.append(build_row(chart_type, top3, prev_row))
+    rows_to_add = [
+        build_row("日榜", daily_top3),
+        build_row("周榜", weekly_top3),
+    ]
 
     append_rows(rows_to_add)
     generate_html()
 
 
 async def main():
-    print("开始执行由你榜抓取（15分钟粒度，单 CSV + HTML 双表）...")
+    print("开始执行由你榜抓取（官方增幅版，单 CSV + HTML 双表）...")
     try:
         await run_once()
         print("任务完成。")
