@@ -58,49 +58,14 @@
     <div id="loading">正在加载数据...</div>
 
     <div id="content" style="display:none;">
+        <!-- Tab 按钮：周榜在前，默认激活 -->
         <div class="tab-bar">
-            <button class="tab-btn active" data-tab="daily">📅 日榜</button>
-            <button class="tab-btn" data-tab="weekly">📆 周榜</button>
+            <button class="tab-btn active" data-tab="weekly">📆 周榜</button>
+            <button class="tab-btn" data-tab="daily">📅 日榜</button>
         </div>
 
-        <!-- 日榜面板 -->
-        <div class="tab-panel active" id="panel-daily">
-            <div class="charts-row">
-                <div class="chart-col-1">
-                    <div class="card">
-                        <div class="title">日榜前三得分趋势</div>
-                        <div class="chart-legend-text" id="dailyLegend"></div>
-                        <div class="chart-wrapper" id="chartDaily"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="charts-row">
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 播放热度</div>
-                        <div class="chart-legend-text" id="dailyPlayLegend"></div>
-                        <div class="chart-wrapper-sm" id="chartDailyPlay"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 畅销度</div>
-                        <div class="chart-legend-text" id="dailySalesLegend"></div>
-                        <div class="chart-wrapper-sm" id="chartDailySales"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 推荐度</div>
-                        <div class="chart-legend-text" id="dailyRecommendLegend"></div>
-                        <div class="chart-wrapper-sm" id="chartDailyRecommend"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 周榜面板 -->
-        <div class="tab-panel" id="panel-weekly">
+        <!-- 周榜面板（默认显示） -->
+        <div class="tab-panel active" id="panel-weekly">
             <div class="charts-row">
                 <div class="chart-col-1">
                     <div class="card">
@@ -130,6 +95,42 @@
                         <div class="title">周榜 · 推荐度</div>
                         <div class="chart-legend-text" id="weeklyRecommendLegend"></div>
                         <div class="chart-wrapper-sm" id="chartWeeklyRecommend"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日榜面板 -->
+        <div class="tab-panel" id="panel-daily">
+            <div class="charts-row">
+                <div class="chart-col-1">
+                    <div class="card">
+                        <div class="title">日榜前三得分趋势</div>
+                        <div class="chart-legend-text" id="dailyLegend"></div>
+                        <div class="chart-wrapper" id="chartDaily"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · 播放热度</div>
+                        <div class="chart-legend-text" id="dailyPlayLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartDailyPlay"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · 畅销度</div>
+                        <div class="chart-legend-text" id="dailySalesLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartDailySales"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · 推荐度</div>
+                        <div class="chart-legend-text" id="dailyRecommendLegend"></div>
+                        <div class="chart-wrapper-sm" id="chartDailyRecommend"></div>
                     </div>
                 </div>
             </div>
