@@ -209,9 +209,9 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">时间</th>
-                                        <th colspan="2">①</th>
-                                        <th colspan="2">②</th>
-                                        <th colspan="2">③</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
                                     </tr>
                                     <tr>
                                         <th>歌名-歌手</th><th>得分 / 增幅</th>
@@ -624,11 +624,11 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
                             color = fv > 0 ? '#ea3690' : '#999';
                         }
 
-                        // 缩小的行距与列宽：gap 6px，分值/增幅列 56px，行最小宽 180px
-                        html += `<div style="display:flex;align-items:center;gap:6px;min-width:180px;">`
+                        // 更紧凑：gap 2px，分值/增幅列 48px，行最小宽 150px
+                        html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
                               + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
-                              + `<span style="width:56px;text-align:right;white-space:nowrap;">${p.value}</span>`
-                              + `<span style="width:56px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;">${p.value}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
                               + `</div>`;
                     });
                 }
