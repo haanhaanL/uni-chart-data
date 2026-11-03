@@ -107,18 +107,18 @@
         font-size: 11px;
         position: sticky;
         top: 0;
+        z-index: 2;
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 表头时间列固定 */
     .recent-table th:first-child {
         position: sticky;
+        top: 0;
         left: 0;
-        z-index: 3;
+        z-index: 4;
         background-color: #ea3690 !important;
         border: 1px solid rgba(255, 255, 255, 0.3);
     }
-    /* 数据区第一列固定：不透明背景 */
     .recent-table td:first-child {
         position: sticky; left: 0; z-index: 1;
         color: #555;
@@ -143,6 +143,20 @@
     .flat, .down { color: #999; font-weight: bold; }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
+
+    /* 得分图范围切换按钮 */
+    .range-tabs {
+        display: flex; justify-content: center; gap: 8px; margin: 2px 0 6px 0;
+    }
+    .range-btn {
+        border: 1px solid rgba(234,54,144,0.35);
+        background: white; color: #ea3690;
+        font-size: 12px; padding: 3px 12px; border-radius: 12px;
+        cursor: pointer; outline: none; font-family: inherit;
+    }
+    .range-btn.active {
+        background: #ea3690; color: #fff; border-color: #ea3690;
+    }
 
     @media (max-width: 900px) {
         .score-row { flex-direction: column; align-items: stretch; }
@@ -208,6 +222,10 @@
                 <div class="score-chart-col">
                     <div class="card">
                         <div class="title">周榜前三得分趋势</div>
+                        <div class="range-tabs" data-chart="weekly">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="24">最近24小时</button>
+                        </div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
                     </div>
@@ -272,6 +290,10 @@
                 <div class="score-chart-col">
                     <div class="card">
                         <div class="title">日榜前三得分趋势</div>
+                        <div class="range-tabs" data-chart="daily">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="24">最近24小时</button>
+                        </div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
                     </div>
@@ -332,6 +354,17 @@ function stripYear(timeStr) {
     return timeStr.replace(/^\d{4}[-/]/, '');
 }
 
+function parseTime(s) {
+    const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (!m) return null;
+    return new Date(
+        parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]),
+        m[4] ? parseInt(m[4]) : 0,
+        m[5] ? parseInt(m[5]) : 0,
+        m[6] ? parseInt(m[6]) : 0
+    );
+}
+
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -358,35 +391,59 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-function renderChart(rows, chartInst, legendId, field, yInterval) {
+// range: '3' 或 '24'
+function renderChart(rows, chartInst, legendId, field, yInterval, range) {
+    range = range || '3';
     const legendEl = document.getElementById(legendId);
 
-    // 1) 按时间升序
-    let sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    // 统一排序
+    const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    const now = new Date();
 
-    // 2) 只保留最近 24 小时（以最新一条为基准）
-    const parseTime = (s) => {
-        const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
-        if (!m) return null;
-        return new Date(
-            parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]),
-            m[4] ? parseInt(m[4]) : 0,
-            m[5] ? parseInt(m[5]) : 0,
-            m[6] ? parseInt(m[6]) : 0
-        );
-    };
-    if (sorted.length) {
-        const latestTime = parseTime(sorted[sorted.length - 1]['时间']);
-        if (latestTime) {
-            const cutoff = latestTime.getTime() - 24 * 60 * 60 * 1000;
-            sorted = sorted.filter(r => {
-                const t = parseTime(r['时间']);
-                return t && t.getTime() >= cutoff;
-            });
+    // 每一列对应的“行”数组：列 -> 数据行或 null
+    let rowsByColumn = [];
+    let times = [];
+
+    if (range === '3') {
+        // 最近 3 小时：全部原始点
+        const cutoff = now.getTime() - 3 * 60 * 60 * 1000;
+        const inRange = allSorted.filter(r => {
+            const t = parseTime(r['时间']);
+            return t && t.getTime() >= cutoff;
+        });
+        rowsByColumn = inRange;
+        times = inRange.map(r => {
+            const t = r['时间'] || '';
+            const p = t.split(' ');
+            return p.length > 1 ? p[1] : t;
+        });
+    } else {
+        // 最近 24 小时：每小时 06 分的时间轴，缺失留空
+        const byMin06 = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            if (t.getMinutes() !== 6) return;
+            const key = `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')} ${String(t.getHours()).padStart(2,'0')}:06`;
+            byMin06[key] = r;
+        });
+        const axis = [];
+        for (let i = 23; i >= 0; i--) {
+            const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:06`;
+            axis.push({ key, label: `${String(d.getHours()).padStart(2,'0')}:06`, row: byMin06[key] || null });
         }
+        rowsByColumn = axis.map(a => a.row);
+        times = axis.map(a => a.label);
     }
 
-    if (!sorted.length) {
+    // 找最近有数据的一行定歌曲顺序
+    let latest = null;
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        if (rowsByColumn[i]) { latest = rowsByColumn[i]; break; }
+    }
+
+    if (!latest) {
         chartInst.hideLoading();
         chartInst.setOption({
             title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
@@ -395,14 +452,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         return;
     }
 
-    // 3) 横轴 = 全部数据点时间
-    const times = sorted.map(r => {
-        const t = r['时间'] || '';
-        const p = t.split(' ');
-        return p.length > 1 ? p[1] : t;
-    });
-
-    const latest = sorted[sorted.length - 1];
     const songKey = (r, rank) => {
         const name = r[`第${rank}名歌名`] || '';
         const singer = r[`第${rank}名歌手`] || '';
@@ -416,9 +465,11 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
         const key = songKey(latest, rank);
         if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
     }
-    for (let i = sorted.length - 1; i >= 0; i--) {
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        const r = rowsByColumn[i];
+        if (!r) continue;
         for (let rank = 1; rank <= 3; rank++) {
-            const key = songKey(sorted[i], rank);
+            const key = songKey(r, rank);
             if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
         }
     }
@@ -429,7 +480,8 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
     });
 
     function songSeriesData(key) {
-        return sorted.map(r => {
+        return rowsByColumn.map(r => {
+            if (!r) return null;
             for (let rank = 1; rank <= 3; rank++) {
                 if (songKey(r, rank) === key) {
                     const s = r[`第${rank}名${field}`] || '';
@@ -467,11 +519,17 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
             formatter: function(params) {
                 if (!params.length) return '';
                 const i = params[0].dataIndex;
-                let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[i]['时间']}</div>`;
-                params.forEach(p => {
-                    if (p.value === null || p.value === undefined) return;
-                    html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
-                });
+                const r = rowsByColumn[i];
+                const label = range === '3'
+                    ? (r && r['时间']) || times[i]
+                    : times[i] + (r ? '' : '（无数据）');
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+                    });
+                }
                 return html;
             }
         },
@@ -481,14 +539,10 @@ function renderChart(rows, chartInst, legendId, field, yInterval) {
             boundaryGap: false,
             data: times,
             axisLabel: {
-                interval: 0,
+                interval: 'auto',
                 fontSize: 10,
                 color: '#888',
                 rotate: 45,
-                formatter: function (value) {
-                    const m = String(value).match(/(\d{1,2}):(\d{2})/);
-                    return (m && m[2] === '06') ? value : '';
-                }
             },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
@@ -521,26 +575,34 @@ function loadCsv(url) {
     });
 }
 
+let dailyRowsCache = [];
+let weeklyRowsCache = [];
+let dailyRange = '3';
+let weeklyRange = '3';
+
 (async function init() {
     const [dailyRows, weeklyRows] = await Promise.all([
         loadCsv('uni_chart_daily.csv'),
         loadCsv('uni_chart_weekly.csv'),
     ]);
 
+    dailyRowsCache = dailyRows;
+    weeklyRowsCache = weeklyRows;
+
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
     renderRecentTable(dailyRows, 'dailyTableBody');
-    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', 1);
-    renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度');
-    renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度');
-    renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度');
+    renderChart(dailyRows, chartDaily, 'dailyLegend', '得分', 1, dailyRange);
+    renderChart(dailyRows, chartDailyPlay, 'dailyPlayLegend', '播放热度', undefined, '24');
+    renderChart(dailyRows, chartDailySales, 'dailySalesLegend', '畅销度', undefined, '24');
+    renderChart(dailyRows, chartDailyRecommend, 'dailyRecommendLegend', '推荐度', undefined, '24');
 
     renderRecentTable(weeklyRows, 'weeklyTableBody');
-    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', 1);
-    renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度');
-    renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度');
-    renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度');
+    renderChart(weeklyRows, chartWeekly, 'weeklyLegend', '得分', 1, weeklyRange);
+    renderChart(weeklyRows, chartWeeklyPlay, 'weeklyPlayLegend', '播放热度', undefined, '24');
+    renderChart(weeklyRows, chartWeeklySales, 'weeklySalesLegend', '畅销度', undefined, '24');
+    renderChart(weeklyRows, chartWeeklyRecommend, 'weeklyRecommendLegend', '推荐度', undefined, '24');
 
     allCharts.forEach(c => c.resize());
 
@@ -549,6 +611,25 @@ function loadCsv(url) {
         document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
     }
 })();
+
+// 切换最近3小时 / 24小时
+document.querySelectorAll('.range-tabs').forEach(wrap => {
+    wrap.querySelectorAll('.range-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            wrap.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const chartKey = wrap.dataset.chart;
+            const range = this.dataset.range;
+            if (chartKey === 'weekly') {
+                weeklyRange = range;
+                renderChart(weeklyRowsCache, chartWeekly, 'weeklyLegend', '得分', 1, range);
+            } else {
+                dailyRange = range;
+                renderChart(dailyRowsCache, chartDaily, 'dailyLegend', '得分', 1, range);
+            }
+        });
+    });
+});
 
 document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', function() {
