@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>腾讯音乐由你榜 · 前三追踪</title>
 <script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
     body {
         margin: 0; padding: 8px; background-color: #f5f5f5;
@@ -19,9 +20,11 @@
     h1 { text-align: center; color: #D35400; font-size: 18px; margin: 10px 0; }
     h3 { text-align: center; color: #D35400; margin: 0 0 10px 0; font-size: 15px; font-weight: bold; }
     .update-time { text-align: center; color: #888; font-size: 12px; margin-bottom: 12px; }
+
+    /* 表格滑动框 */
     .table-scroll-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .table-scroll-box::-webkit-scrollbar { display: none; }
-    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 1000px; }
     th, td { padding: 10px 8px; text-align: right; border-bottom: 1px solid #eee; white-space: nowrap; }
     th {
         background-color: #fdf2e9; color: #d35400; font-weight: bold;
@@ -34,9 +37,21 @@
     th:first-child { background: #fdf2e9; z-index: 2; }
     tr:nth-child(even) td:first-child { background: #fafafa; }
     .val-name { text-align: left; font-weight: bold; color: #333; }
+    .val-singer { text-align: left; color: #888; font-size: 12px; }
     .val-score { font-weight: bold; color: #2980b9; }
     .up { color: #e74c3c; font-weight: bold; }
     .down { color: #27ae60; font-weight: bold; }
+
+    /* 图表滑动框 */
+    .chart-scroll-box {
+        width: 100%; overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch;
+    }
+    .chart-scroll-box::-webkit-scrollbar { display: none; }
+    .chart-wrapper { width: 900px; height: 350px; }
+    .title {
+        text-align: center; color: #D35400; font-size: 15px; font-weight: bold; margin: 5px 0 10px 0;
+    }
+
     #loading { text-align: center; color: #666; font-size: 16px; margin-top: 50px; }
 </style>
 </head>
@@ -46,6 +61,8 @@
     <div class="update-time" id="updateTime"></div>
     <div id="loading">正在加载数据...</div>
     <div id="content" style="display:none;">
+
+        <!-- 日榜表格 -->
         <div class="card">
             <h3>📅 日榜</h3>
             <div class="table-scroll-box">
@@ -53,15 +70,17 @@
                     <thead>
                         <tr>
                             <th>时间</th>
-                            <th>第1名</th><th>1名得分</th><th>1名增幅</th>
-                            <th>第2名</th><th>2名得分</th><th>2名增幅</th>
-                            <th>第3名</th><th>3名得分</th><th>3名增幅</th>
+                            <th>第1名</th><th>1名歌手</th><th>1名得分</th><th>1名增幅</th>
+                            <th>第2名</th><th>2名歌手</th><th>2名得分</th><th>2名增幅</th>
+                            <th>第3名</th><th>3名歌手</th><th>3名得分</th><th>3名增幅</th>
                         </tr>
                     </thead>
                     <tbody id="dailyBody"></tbody>
                 </table>
             </div>
         </div>
+
+        <!-- 周榜表格 -->
         <div class="card">
             <h3>📆 周榜</h3>
             <div class="table-scroll-box">
@@ -69,15 +88,32 @@
                     <thead>
                         <tr>
                             <th>时间</th>
-                            <th>第1名</th><th>1名得分</th><th>1名增幅</th>
-                            <th>第2名</th><th>2名得分</th><th>2名增幅</th>
-                            <th>第3名</th><th>3名得分</th><th>3名增幅</th>
+                            <th>第1名</th><th>1名歌手</th><th>1名得分</th><th>1名增幅</th>
+                            <th>第2名</th><th>2名歌手</th><th>2名得分</th><th>2名增幅</th>
+                            <th>第3名</th><th>3名歌手</th><th>3名得分</th><th>3名增幅</th>
                         </tr>
                     </thead>
                     <tbody id="weeklyBody"></tbody>
                 </table>
             </div>
         </div>
+
+        <!-- 日榜趋势图 -->
+        <div class="card">
+            <div class="title">📅 日榜前三得分趋势 (👈左右滑动👉)</div>
+            <div class="chart-scroll-box">
+                <div class="chart-wrapper" id="chartDaily"></div>
+            </div>
+        </div>
+
+        <!-- 周榜趋势图 -->
+        <div class="card">
+            <div class="title">📆 周榜前三得分趋势 (👈左右滑动👉)</div>
+            <div class="chart-scroll-box">
+                <div class="chart-wrapper" id="chartWeekly"></div>
+            </div>
+        </div>
+
     </div>
 </div>
 
@@ -93,9 +129,11 @@ function buildRow(row) {
     const cells = [`<td>${row['时间'] || ''}</td>`];
     for (let i = 1; i <= 3; i++) {
         const name = row[`第${i}名歌名`] || '';
+        const singer = row[`第${i}名歌手`] || '';
         const score = row[`第${i}名得分`] || '';
         const change = row[`第${i}名官方增幅`] || '';
         cells.push(`<td class="val-name">${name}</td>`);
+        cells.push(`<td class="val-singer">${singer}</td>`);
         cells.push(`<td class="val-score">${score}</td>`);
         cells.push(`<td class="${colorClass(change)}">${change}</td>`);
     }
@@ -105,14 +143,103 @@ function buildRow(row) {
 function renderTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="13" style="text-align:center;color:#999;">暂无数据</td></tr>';
         return;
     }
-    // 最新的在最上面
     rows.sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
     tbody.innerHTML = rows.map(buildRow).join('');
 }
 
+// ====== 图表 ======
+const chartDaily = echarts.init(document.getElementById('chartDaily'), null, { width: 900, height: 350 });
+const chartWeekly = echarts.init(document.getElementById('chartWeekly'), null, { width: 900, height: 350 });
+chartDaily.showLoading();
+chartWeekly.showLoading();
+
+function renderChart(rows, chartInstance) {
+    if (!rows.length) {
+        chartInstance.hideLoading();
+        chartInstance.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        return;
+    }
+
+    // 按时间升序
+    const sorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+
+    // X 轴：只显示 HH:MM
+    const times = sorted.map(r => {
+        const t = r['时间'] || '';
+        const parts = t.split(' ');
+        return parts.length > 1 ? parts[1] : t;
+    });
+
+    function buildSeriesData(rank) {
+        return sorted.map(r => {
+            const score = r[`第${rank}名得分`] || '';
+            return score === '' ? null : parseFloat(score);
+        });
+    }
+
+    function buildTooltipData(rank) {
+        return sorted.map(r => ({
+            name: r[`第${rank}名歌名`] || '',
+            singer: r[`第${rank}名歌手`] || '',
+            score: r[`第${rank}名得分`] || '',
+        }));
+    }
+
+    const series = [1, 2, 3].map(rank => ({
+        name: `第${rank}名`,
+        type: 'line',
+        data: buildSeriesData(rank),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 4,
+        connectNulls: false,
+        lineStyle: { width: 2 },
+        emphasis: { focus: 'series' },
+    }));
+
+    const tooltipData = [1, 2, 3].map(rank => buildTooltipData(rank));
+
+    chartInstance.hideLoading();
+    chartInstance.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const idx = params[0].dataIndex;
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${sorted[idx]['时间']}</div>`;
+                params.forEach(p => {
+                    const rank = p.seriesIndex + 1;
+                    const d = tooltipData[p.seriesIndex][idx];
+                    html += `<div>${p.marker} 第${rank}名：${d.name}${d.singer ? ' - ' + d.singer : ''} <b>${d.score}</b></div>`;
+                });
+                return html;
+            }
+        },
+        legend: { top: '0%', itemWidth: 12, itemHeight: 8, textStyle: { fontSize: 12 } },
+        grid: { left: '2%', right: '5%', bottom: '10%', top: '15%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: { interval: 'auto', fontSize: 11, rotate: 45 },
+        },
+        yAxis: {
+            type: 'value',
+            name: '得分',
+            scale: true,
+            axisLabel: { fontSize: 11 },
+        },
+        series: series,
+    }, true);
+}
+
+// ====== 读取 CSV ======
 Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
     download: true,
     header: true,
@@ -129,7 +256,9 @@ Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
         renderTable(dailyRows, 'dailyBody');
         renderTable(weeklyRows, 'weeklyBody');
 
-        // 显示最新一条记录的时间作为“最后更新”
+        renderChart(dailyRows, chartDaily);
+        renderChart(weeklyRows, chartWeekly);
+
         const allTimes = data.map(r => r['时间']).filter(Boolean).sort();
         if (allTimes.length) {
             document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
@@ -139,6 +268,16 @@ Papa.parse('uni_chart_data.csv?t=' + new Date().getTime(), {
         document.getElementById('loading').innerText = '加载 uni_chart_data.csv 失败，请确认文件在同目录下。';
         console.error(err);
     }
+});
+
+// ====== resize ======
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        chartDaily.resize({ width: 900, height: 350 });
+        chartWeekly.resize({ width: 900, height: 350 });
+    }, 200);
 });
 </script>
 </body>
