@@ -6,7 +6,8 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_FILE = os.path.join(BASE_DIR, "uni_chart_data.csv")
+CSV_DAILY = os.path.join(BASE_DIR, "uni_chart_daily.csv")
+CSV_WEEKLY = os.path.join(BASE_DIR, "uni_chart_weekly.csv")
 BJT = timezone(timedelta(hours=8))
 
 API_DAILY = "https://yobang.tencentmusic.com/unichartsapi/yobang/daily/chart?page=1&pageSize=200"
@@ -21,58 +22,63 @@ HEADERS = {
 }
 
 HEADER = [
-    "时间", "榜单类型",
+    "时间",
     "第1名歌名", "第1名歌手", "第1名得分", "第1名播放热度", "第1名畅销度", "第1名推荐度", "第1名官方增幅",
     "第2名歌名", "第2名歌手", "第2名得分", "第2名播放热度", "第2名畅销度", "第2名推荐度", "第2名官方增幅",
     "第3名歌名", "第3名歌手", "第3名得分", "第3名播放热度", "第3名畅销度", "第3名推荐度", "第3名官方增幅",
 ]
 
 
+def fetch_detail_indices(client, uid):
+    """请求 charts_detail，按 code 取三个维度：1=播放热度, 4=畅销度, 5=推荐度"""
+    play = sales = recommend = ""
+    if not uid:
+        return play, sales, recommend
+    try:
+        resp = client.get(API_DETAIL.format(uid=uid))
+        resp.raise_for_status()
+        data = resp.json().get("data") or []
+        if data:
+            idx_map = {c.get("code"): c.get("index", "") for c in data[0].get("classifyIndices", [])}
+            play = idx_map.get(1, "")
+            sales = idx_map.get(4, "")
+            recommend = idx_map.get(5, "")
+    except Exception as e:
+        print(f"[detail] uid={uid} 失败: {e}")
+    return play, sales, recommend
+
+
 def fetch_daily_top3(client):
-    """日榜：一次请求，extend 里直接带三个维度"""
     resp = client.get(API_DAILY)
     resp.raise_for_status()
     items = resp.json()["data"]["data"][:3]
     result = []
     for it in items:
-        ext = it.get("extend") or {}
         info = it.get("info") or {}
+        uid = it.get("itemId")
+        play, sales, recommend = fetch_detail_indices(client, uid)
         result.append({
-            "rank": it.get("rank"),
             "name": info.get("trackNameShow", ""),
             "singer": info.get("singerName", ""),
             "score": it.get("score", ""),
-            "play": ext.get("playIndex", ""),
-            "sales": ext.get("payIndex", ""),
-            "recommend": ext.get("popIndex", ""),
+            "play": play,
+            "sales": sales,
+            "recommend": recommend,
             "change": it.get("incrScore", ""),
         })
     return result
 
 
 def fetch_weekly_top3(client):
-    """周榜：dynamic 拿前三，再对每个 uniTrackId 请求 charts_detail 补三个维度"""
     url = API_WEEKLY.format(ts=int(time.time() * 1000))
     resp = client.get(url)
     resp.raise_for_status()
     items = resp.json()["data"]["chartsList"][:3]
-
     result = []
     for it in items:
         uid = it.get("uniTrackId")
-        play = sales = recommend = ""
-        if uid:
-            try:
-                d = client.get(API_DETAIL.format(uid=uid)).json()["data"][0]
-                idx_map = {c.get("code"): c.get("index", "") for c in d.get("classifyIndices", [])}
-                play = idx_map.get(1, "")
-                sales = idx_map.get(4, "")
-                recommend = idx_map.get(5, "")
-            except Exception as e:
-                print(f"[weekly detail] uid={uid} 获取失败: {e}")
-
+        play, sales, recommend = fetch_detail_indices(client, uid)
         result.append({
-            "rank": it.get("rank"),
             "name": it.get("songName", ""),
             "singer": it.get("singerName", ""),
             "score": it.get("uniIndex", ""),
@@ -84,57 +90,41 @@ def fetch_weekly_top3(client):
     return result
 
 
-def build_row(chart_type, top3):
+def build_row(top3):
     now_str = datetime.now(BJT).strftime("%Y/%m/%d %H:%M")
-    row = [now_str, chart_type]
+    row = [now_str]
     for i in range(3):
         if i < len(top3):
             t = top3[i]
-            row.extend([
-                t.get("name", ""), t.get("singer", ""), t.get("score", ""),
-                t.get("play", ""), t.get("sales", ""), t.get("recommend", ""),
-                t.get("change", ""),
-            ])
+            row.extend([t["name"], t["singer"], t["score"], t["play"], t["sales"], t["recommend"], t["change"]])
         else:
             row.extend([""] * 7)
     return row
 
 
-def load_last_timestamp(chart_type):
-    if not os.path.exists(CSV_FILE):
+def last_timestamp(csv_file):
+    if not os.path.exists(csv_file):
         return None
-    with open(CSV_FILE, "r", encoding="utf-8-sig", newline="") as f:
+    with open(csv_file, "r", encoding="utf-8-sig", newline="") as f:
         rows = list(csv.reader(f))
-    for r in reversed(rows[1:]):
-        if len(r) > 1 and r[1] == chart_type:
-            return r[0]
-    return None
+    return rows[-1][0] if len(rows) > 1 else None
 
 
-def append_rows(rows_to_add):
-    """同类型同时间戳去重"""
-    file_exists = os.path.exists(CSV_FILE)
-    filtered = []
-    for r in rows_to_add:
-        if r[0] == load_last_timestamp(r[1]):
-            print(f"⏭️ 跳过重复 [{r[1]}] {r[0]}")
-            continue
-        filtered.append(r)
-
-    if not filtered:
+def append_row(csv_file, row):
+    if row[0] == last_timestamp(csv_file):
+        print(f"⏭️ 跳过重复 {os.path.basename(csv_file)} {row[0]}")
         return
-
-    with open(CSV_FILE, "a", encoding="utf-8-sig", newline="") as f:
+    file_exists = os.path.exists(csv_file)
+    with open(csv_file, "a", encoding="utf-8-sig", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
             writer.writerow(HEADER)
-        writer.writerows(filtered)
-    for r in filtered:
-        print(f"✅ 写入 [{r[1]}] {r[0]}")
+        writer.writerow(row)
+    print(f"✅ 写入 {os.path.basename(csv_file)} {row[0]}")
 
 
 def main():
-    print("开始抓取由你榜（纯接口版）...")
+    print("开始抓取由你榜（日榜/周榜分文件）...")
     with httpx.Client(headers=HEADERS, timeout=20, follow_redirects=True) as client:
         try:
             daily = fetch_daily_top3(client)
@@ -150,8 +140,8 @@ def main():
             print(f"[周榜] 失败: {e}")
             weekly = []
 
-    rows = [build_row("日榜", daily), build_row("周榜", weekly)]
-    append_rows(rows)
+    append_row(CSV_DAILY, build_row(daily))
+    append_row(CSV_WEEKLY, build_row(weekly))
     print("任务完成。")
 
 
