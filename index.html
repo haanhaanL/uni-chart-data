@@ -87,7 +87,7 @@
         padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
         min-height: 36px; line-height: 1.5;
     }
-    /* 表头：品牌粉底 + 白字 */
+    /* 表头：品牌粉底 + 白字 + 四周边框 */
     .recent-table th {
         background-color: #ea3690 !important;
         color: #ffffff;
@@ -95,6 +95,7 @@
         font-size: 11px;
         position: sticky;
         top: 0;
+        border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 1px 0 #f3e6ee;
     }
     /* 时间列：比增幅灰深，非黑 */
@@ -155,9 +156,9 @@
                                         <th colspan="2">③</th>
                                     </tr>
                                     <tr>
-                                        <th>歌名-歌手</th><th>得分/增幅</th>
-                                        <th>歌名-歌手</th><th>得分/增幅</th>
-                                        <th>歌名-歌手</th><th>得分/增幅</th>
+                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="weeklyTableBody"></tbody>
@@ -220,9 +221,9 @@
                                         <th colspan="2">③</th>
                                     </tr>
                                     <tr>
-                                        <th>歌名-歌手</th><th>得分/增幅</th>
-                                        <th>歌名-歌手</th><th>得分/增幅</th>
-                                        <th>歌名-歌手</th><th>得分/增幅</th>
+                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="dailyTableBody"></tbody>
@@ -293,7 +294,7 @@ function stripYear(timeStr) {
     return timeStr.replace(/^\d{4}[-/]/, '');
 }
 
-// 最近 10 条表格（方案二：歌名-歌手 + 得分/增幅）
+// 最近 10 条表格（方案二：歌名-歌手 + 得分 / 增幅）
 function renderRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -313,7 +314,7 @@ function renderRecentTable(rows, tbodyId) {
             const change = r[`第${i}名官方增幅`] || '';
             const cls = colorClass(change);
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
-            cells.push(`<td><span class="val-score">${score}</span> <span class="${cls}">${change}</span></td>`);
+            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${change}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     }).join('');
