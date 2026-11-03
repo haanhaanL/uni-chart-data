@@ -1,7 +1,7 @@
 name: 自动抓取由你榜数据
 
 on:
-  workflow_dispatch:   # 由 cron-job.org 调用，实现每小时定时运行
+  workflow_dispatch:   # 由 cron-job.org 调用，每 15 分钟触发一次
 
 concurrency:
   group: scrape-uni-chart-data
@@ -50,7 +50,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add uni_chart_data.csv index.html
+          git add uni_chart_data.csv
 
           if git diff --staged --quiet; then
             echo "没有变更，无需提交"
@@ -68,8 +68,8 @@ jobs:
             echo "push 失败，第 $i 次重试..."
             git pull --rebase origin ${{ github.ref_name }}
             if [ $? -ne 0 ]; then
-              git checkout --ours uni_chart_data.csv index.html 2>/dev/null || true
-              git add uni_chart_data.csv index.html 2>/dev/null || true
+              git checkout --ours uni_chart_data.csv 2>/dev/null || true
+              git add uni_chart_data.csv 2>/dev/null || true
               git rebase --continue 2>/dev/null || true
             fi
             sleep $((i * 2))
