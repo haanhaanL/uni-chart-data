@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>腾讯音乐由你榜 · TOP3追踪</title>
+<title>腾讯音乐由你榜 · 前三追踪</title>
 <script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
@@ -226,7 +226,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">周榜 · 得分</div>
+                        <div class="title">周榜前三得分趋势</div>
                         <div class="range-tabs" data-chart="weeklyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="24">最近24小时</button>
@@ -307,7 +307,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">日榜 · 得分</div>
+                        <div class="title">日榜前三得分趋势</div>
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
@@ -413,7 +413,6 @@ function fmtDateKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// 更新日榜“当日日期”按钮文字
 function refreshDailyDateButtons() {
     const label = fmtDateLabel(getTodayDateForDaily());
     document.querySelectorAll('.range-tabs[data-chart^="daily"] .range-btn[data-range="today"]').forEach(btn => {
@@ -475,7 +474,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             return p.length > 1 ? p[1] : t;
         });
     } else if (range === '24') {
-        // 最近24小时（周榜）
         const byMin06 = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
@@ -493,12 +491,11 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
         rowsByColumn = axis.map(a => a.row);
         times = axis.map(a => a.label);
     } else {
-        // 'today'：当天0-24，每小时06分；0点用00:16，24点用次日00:06
+        // 'today'
         const baseDay = getTodayDateForDaily();
         const nextDay = new Date(baseDay);
         nextDay.setDate(nextDay.getDate() + 1);
 
-        // 建立所有需要的 key -> 行
         const rowByKey = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
@@ -508,15 +505,12 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
         });
 
         const axis = [];
-        // 00:06 用当天 00:16
         const key00 = `${fmtDateKey(baseDay)} 00:16`;
         axis.push({ key: key00, label: '00:06', row: rowByKey[key00] || null });
-        // 01:06 ~ 23:06 用当天对应小时 06
         for (let h = 1; h <= 23; h++) {
             const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
             axis.push({ key, label: `${String(h).padStart(2, '0')}:06`, row: rowByKey[key] || null });
         }
-        // 24:00 用次日 00:06
         const key24 = `${fmtDateKey(nextDay)} 00:06`;
         axis.push({ key: key24, label: '24:00', row: rowByKey[key24] || null });
 
@@ -613,7 +607,27 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
                 if (r) {
                     params.forEach(p => {
                         if (p.value === null || p.value === undefined) return;
-                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+
+                        // 找这首歌在该行的名次，直接读 CSV 官方增幅
+                        let deltaRaw = '';
+                        for (let rank = 1; rank <= 3; rank++) {
+                            if (songKey(r, rank) === p.seriesName) {
+                                deltaRaw = r[`第${rank}名官方增幅`] || '';
+                                break;
+                            }
+                        }
+                        let deltaHtml = '';
+                        if (deltaRaw !== '') {
+                            const fv = parseFloat(deltaRaw);
+                            const text = (fv > 0 ? '+' : '') + deltaRaw;
+                            const color = fv > 0 ? '#ea3690' : '#999';   // >0 粉色，≤0 灰色
+                            deltaHtml = `<span style="color:${color};margin-left:6px;">${text}</span>`;
+                        }
+
+                        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;min-width:180px;">`
+                              + `<span>${p.marker} ${p.seriesName}</span>`
+                              + `<span style="text-align:right;white-space:nowrap;">${p.value}${deltaHtml}</span>`
+                              + `</div>`;
                     });
                 }
                 return html;
@@ -692,7 +706,6 @@ function renderChartByKey(key) {
     renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode);
 }
 
-// 页面初始及每分钟刷新日榜日期按钮（跨 0:10 后自动变）
 function updateDailyDateLabels() {
     refreshDailyDateButtons();
 }
@@ -723,7 +736,6 @@ function updateDailyDateLabels() {
         document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
     }
 
-    // 每分钟刷新日榜日期按钮文字（0:10 后自动切换）
     setInterval(updateDailyDateLabels, 60 * 1000);
 })();
 
