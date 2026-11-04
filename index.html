@@ -220,9 +220,9 @@
                                         <th colspan="2">3</th>
                                     </tr>
                                     <tr>
-                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
-                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
-                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="weeklyTableBody"></tbody>
@@ -232,7 +232,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">周榜 · 得分</div>
+                        <div class="title">周榜 · 总分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="24">最近24小时</button>
@@ -338,9 +338,9 @@
                                         <th colspan="2">3</th>
                                     </tr>
                                     <tr>
-                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
-                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
-                                        <th>歌名-歌手</th><th>得分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
                                     </tr>
                                 </thead>
                                 <tbody id="dailyTableBody"></tbody>
@@ -350,7 +350,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">日榜 · 得分</div>
+                        <div class="title">日榜 · 总分</div>
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
@@ -369,7 +369,6 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
                         <div class="chart-legend-text" id="dailyPlayLegend"></div>
                         <div class="chart-wrapper" id="chartDailyPlay"></div>
                     </div>
@@ -381,7 +380,6 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
                         <div class="chart-legend-text" id="dailySalesLegend"></div>
                         <div class="chart-wrapper" id="chartDailySales"></div>
                     </div>
@@ -393,7 +391,6 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
                         <div class="chart-legend-text" id="dailyRecommendLegend"></div>
                         <div class="chart-wrapper" id="chartDailyRecommend"></div>
                     </div>
@@ -409,7 +406,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
+                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
                         <div class="chart-legend-text" id="dailyRank1Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank1"></div>
                     </div>
@@ -421,7 +418,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
+                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
                         <div class="chart-legend-text" id="dailyRank2Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank2"></div>
                     </div>
@@ -433,7 +430,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
+                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
                         <div class="chart-legend-text" id="dailyRank3Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank3"></div>
                     </div>
@@ -447,7 +444,7 @@
 const lineColors = ['#ea3690', '#7c3aed', '#f97316', '#00e268', '#f5cc0b', '#10b981', '#c4b5fd', '#ef4444', '#14b8a6', '#64748b'];
 
 const rankFields = [
-    { key: '得分',     color: '#ea3690' },
+    { key: '总分',     color: '#ea3690' },
     { key: '播放热度', color: '#7c3aed' },
     { key: '畅销度',   color: '#f97316' },
     { key: '推荐度',   color: '#00e268' },
@@ -935,11 +932,11 @@ const chartState = {
 };
 
 const chartConfig = {
-    weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '得分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '总分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
     weeklyPlay:      { chart: chartWeeklyPlay,      legend: 'weeklyPlayLegend',      field: '播放热度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
     weeklySales:     { chart: chartWeeklySales,     legend: 'weeklySalesLegend',     field: '畅销度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
     weeklyRecommend: { chart: chartWeeklyRecommend, legend: 'weeklyRecommendLegend', field: '推荐度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
-    dailyScore:      { chart: chartDaily,           legend: 'dailyLegend',           field: '得分',   y: 1,    mode: 'daily', rows: () => dailyRowsCache },
+    dailyScore:      { chart: chartDaily,           legend: 'dailyLegend',           field: '总分',   y: 1,    mode: 'daily', rows: () => dailyRowsCache },
     dailyPlay:       { chart: chartDailyPlay,       legend: 'dailyPlayLegend',       field: '播放热度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
     dailySales:      { chart: chartDailySales,      legend: 'dailySalesLegend',      field: '畅销度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
     dailyRecommend:  { chart: chartDailyRecommend,  legend: 'dailyRecommendLegend',  field: '推荐度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
