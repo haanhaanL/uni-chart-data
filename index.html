@@ -112,7 +112,6 @@
         border: 1px solid rgba(255, 255, 255, 0.3);
         box-shadow: 0 1px 0 #f3e6ee;
     }
-    /* 只固定表头第一行第一列（时间） */
     .recent-table thead tr:first-child th:first-child {
         position: sticky !important;
         top: 0 !important;
@@ -272,7 +271,7 @@
                 </div>
             </div>
 
-            <!-- TOP1/2/3 四项走势 -->
+            <!-- TOP1/2/3 -->
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
@@ -390,7 +389,7 @@
                 </div>
             </div>
 
-            <!-- TOP1/2/3 四项走势 -->
+            <!-- TOP1/2/3 -->
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
@@ -431,7 +430,7 @@
 </div>
 
 <script>
-// 循环配色（与你 style 里的实际颜色一致）
+// 循环配色
 const lineColors = ['#ea3690', '#7c3aed', '#00e268', '#f5cc0b', '#10b981', '#c4b5fd', '#ef4444', '#14b8a6', '#f97316', '#64748b'];
 
 // TOP 图四项固定色
@@ -487,7 +486,6 @@ function parseTime(s) {
     );
 }
 
-// 日榜“当日”日期：每天 0:10 前仍算前一天
 function getTodayDateForDaily() {
     const now = new Date();
     const effective = new Date(now);
@@ -538,7 +536,6 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-// 生成时间轴/列数据
 function buildAxis(rows, range) {
     const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
     const now = new Date();
@@ -598,7 +595,34 @@ function buildAxis(rows, range) {
     return { rowsByColumn, times };
 }
 
-function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
+// 计算一组图（多字段）在当前 range 下的全局 min/max
+function calcGroupRange(rows, range, fields) {
+    const { rowsByColumn } = buildAxis(rows, range);
+    let min = Infinity, max = -Infinity;
+    rowsByColumn.forEach(r => {
+        if (!r) return;
+        fields.forEach(f => {
+            for (let rank = 1; rank <= 3; rank++) {
+                const s = r[`第${rank}名${f}`] || '';
+                const v = parseFloat(s);
+                if (!isNaN(v)) {
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                }
+            }
+        });
+    });
+    if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: undefined };
+    const pad = (max - min) * 0.05 || 1;
+    return { min: min - pad, max: max + pad };
+}
+
+function calcRankGroupRange(rows, range) {
+    const fields = rankFields.map(f => f.key);
+    return calcGroupRange(rows, range, fields);
+}
+
+function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, yMin, yMax) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
@@ -735,6 +759,8 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
         yAxis: {
             type: 'value',
             scale: true,
+            min: yMin,
+            max: yMax,
             interval: yInterval,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
@@ -745,11 +771,281 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
     chartInst.resize();
 }
 
-// TOP 图：某名次的四项走势 + 图例/tooltip 带歌名
-function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
+function renderRankChart(rows, chartInst, legendId, rank, range, mode, yMin, yMax) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
 
     let latestRow = null;
-    for (let i = rowsBy
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        if (rowsByColumn[i]) { latestRow = rowsByColumn[i]; break; }
+    }
+
+    if (!latestRow) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
+    const series = rankFields.map(f => ({
+        name: f.key,
+        type: 'line',
+        data: rowsByColumn.map(r => {
+            if (!r) return null;
+            const s = r[`第${rank}名${f.key}`] || '';
+            return s === '' ? null : parseFloat(s);
+        }),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 3,
+        connectNulls: false,
+        itemStyle: { color: f.color },
+        lineStyle: { width: 2, color: f.color },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        const name = latestRow[`第${rank}名歌名`] || '';
+        const singer = latestRow[`第${rank}名歌手`] || '';
+        const songLabel = singer ? `${singer}-${name}` : name;
+        const songHtml = songLabel
+            ? `<span style="color:#ea3690;font-weight:bold;">当前 TOP${rank}：${songLabel}</span><br>`
+            : '';
+        legendEl.innerHTML = songHtml + rankFields.map(f =>
+            `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.key}</span>`
+        ).join('');
+    }
+
+    chartInst.hideLoading();
+    chartInst.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                const timeText = times[i] + (r ? '' : '（无数据）');
+                let songText = '';
+                if (r) {
+                    const name = r[`第${rank}名歌名`] || '';
+                    const singer = r[`第${rank}名歌手`] || '';
+                    const song = singer ? `${singer}-${name}` : name;
+                    if (song) songText = ` · ${song}`;
+                }
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeText}${songText}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: {
+                interval: range === '3' ? 'auto' : 1,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+            },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            scale: true,
+            min: yMin,
+            max: yMax,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: series,
+    }, true);
+    chartInst.resize();
+}
+
+function loadCsv(url) {
+    return new Promise((resolve) => {
+        Papa.parse(url + '?t=' + new Date().getTime(), {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            complete: (res) => resolve(res.data || []),
+            error: (err) => {
+                console.error('加载失败', url, err);
+                resolve([]);
+            }
+        });
+    });
+}
+
+let dailyRowsCache = [];
+let weeklyRowsCache = [];
+
+const chartState = {
+    weeklyScore: '3',
+    weeklyPlay: '3',
+    weeklySales: '3',
+    weeklyRecommend: '3',
+    weeklyRank1: '3',
+    weeklyRank2: '3',
+    weeklyRank3: '3',
+    dailyScore: '3',
+    dailyPlay: '3',
+    dailySales: '3',
+    dailyRecommend: '3',
+    dailyRank1: '3',
+    dailyRank2: '3',
+    dailyRank3: '3',
+};
+
+const chartConfig = {
+    weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '得分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyPlay:      { chart: chartWeeklyPlay,      legend: 'weeklyPlayLegend',      field: '播放热度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklySales:     { chart: chartWeeklySales,     legend: 'weeklySalesLegend',     field: '畅销度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRecommend: { chart: chartWeeklyRecommend, legend: 'weeklyRecommendLegend', field: '推荐度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyScore:      { chart: chartDaily,           legend: 'dailyLegend',           field: '得分',   y: 1,    mode: 'daily', rows: () => dailyRowsCache },
+    dailyPlay:       { chart: chartDailyPlay,       legend: 'dailyPlayLegend',       field: '播放热度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
+    dailySales:      { chart: chartDailySales,      legend: 'dailySalesLegend',      field: '畅销度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
+    dailyRecommend:  { chart: chartDailyRecommend,  legend: 'dailyRecommendLegend',  field: '推荐度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
+};
+
+const rankChartConfig = {
+    weeklyRank1: { chart: chartWeeklyRank1, legend: 'weeklyRank1Legend', rank: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank2: { chart: chartWeeklyRank2, legend: 'weeklyRank2Legend', rank: 2, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank3: { chart: chartWeeklyRank3, legend: 'weeklyRank3Legend', rank: 3, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyRank1:  { chart: chartDailyRank1,  legend: 'dailyRank1Legend',  rank: 1, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank2:  { chart: chartDailyRank2,  legend: 'dailyRank2Legend',  rank: 2, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank3:  { chart: chartDailyRank3,  legend: 'dailyRank3Legend',  rank: 3, mode: 'daily',  rows: () => dailyRowsCache },
+};
+
+function renderChartByKey(key) {
+    if (chartConfig[key]) {
+        const cfg = chartConfig[key];
+        const range = chartState[key];
+        const rows = cfg.rows();
+
+        // 三维度组：三图共享范围
+        if (key === 'weeklyPlay' || key === 'weeklySales' || key === 'weeklyRecommend') {
+            const { min, max } = calcGroupRange(rows, range, ['播放热度', '畅销度', '推荐度']);
+            renderChart(rows, cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, min, max);
+            return;
+        }
+        if (key === 'dailyPlay' || key === 'dailySales' || key === 'dailyRecommend') {
+            const { min, max } = calcGroupRange(rows, range, ['播放热度', '畅销度', '推荐度']);
+            renderChart(rows, cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, min, max);
+            return;
+        }
+
+        // 得分图单独
+        renderChart(rows, cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode);
+    } else if (rankChartConfig[key]) {
+        const cfg = rankChartConfig[key];
+        const range = chartState[key];
+        const rows = cfg.rows();
+        const { min, max } = calcRankGroupRange(rows, range);
+        renderRankChart(rows, cfg.chart, cfg.legend, cfg.rank, range, cfg.mode, min, max);
+    }
+}
+
+function updateDailyDateLabels() {
+    refreshDailyDateButtons();
+}
+
+(async function init() {
+    updateDailyDateLabels();
+
+    const [dailyRows, weeklyRows] = await Promise.all([
+        loadCsv('uni_chart_daily.csv'),
+        loadCsv('uni_chart_weekly.csv'),
+    ]);
+
+    dailyRowsCache = dailyRows;
+    weeklyRowsCache = weeklyRows;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    renderRecentTable(dailyRows, 'dailyTableBody');
+    renderRecentTable(weeklyRows, 'weeklyTableBody');
+
+    Object.keys(chartConfig).forEach(key => renderChartByKey(key));
+    Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
+
+    allCharts.forEach(c => c.resize());
+
+    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+    }
+
+    setInterval(updateDailyDateLabels, 60 * 1000);
+})();
+
+document.querySelectorAll('.range-tabs').forEach(wrap => {
+    wrap.querySelectorAll('.range-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            wrap.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const key = wrap.dataset.chart;
+            const range = this.dataset.range;
+            chartState[key] = range;
+
+            // 同组图一起重绘，保持纵轴一致
+            if (key === 'weeklyPlay' || key === 'weeklySales' || key === 'weeklyRecommend') {
+                ['weeklyPlay', 'weeklySales', 'weeklyRecommend'].forEach(k => {
+                    chartState[k] = range;
+                    renderChartByKey(k);
+                });
+            } else if (key === 'dailyPlay' || key === 'dailySales' || key === 'dailyRecommend') {
+                ['dailyPlay', 'dailySales', 'dailyRecommend'].forEach(k => {
+                    chartState[k] = range;
+                    renderChartByKey(k);
+                });
+            } else if (key === 'weeklyRank1' || key === 'weeklyRank2' || key === 'weeklyRank3') {
+                ['weeklyRank1', 'weeklyRank2', 'weeklyRank3'].forEach(k => {
+                    chartState[k] = range;
+                    renderChartByKey(k);
+                });
+            } else if (key === 'dailyRank1' || key === 'dailyRank2' || key === 'dailyRank3') {
+                ['dailyRank1', 'dailyRank2', 'dailyRank3'].forEach(k => {
+                    chartState[k] = range;
+                    renderChartByKey(k);
+                });
+            } else {
+                renderChartByKey(key);
+            }
+        });
+    });
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+        allCharts.forEach(c => c.resize());
+    });
+});
+
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        allCharts.forEach(c => c.resize());
+    }, 200);
+});
+</script>
+</body>
+</html>
