@@ -444,7 +444,7 @@
 const lineColors = ['#ea3690', '#7c3aed', '#f97316', '#00e268', '#f5cc0b', '#10b981', '#c4b5fd', '#ef4444', '#14b8a6', '#64748b'];
 
 const rankFields = [
-    { key: '总分',     color: '#ea3690' },
+    { key: '得分',     color: '#ea3690' },
     { key: '播放热度', color: '#7c3aed' },
     { key: '畅销度',   color: '#f97316' },
     { key: '推荐度',   color: '#00e268' },
@@ -932,11 +932,11 @@ const chartState = {
 };
 
 const chartConfig = {
-    weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '总分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '得分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
     weeklyPlay:      { chart: chartWeeklyPlay,      legend: 'weeklyPlayLegend',      field: '播放热度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
     weeklySales:     { chart: chartWeeklySales,     legend: 'weeklySalesLegend',     field: '畅销度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
     weeklyRecommend: { chart: chartWeeklyRecommend, legend: 'weeklyRecommendLegend', field: '推荐度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
-    dailyScore:      { chart: chartDaily,           legend: 'dailyLegend',           field: '总分',   y: 1,    mode: 'daily', rows: () => dailyRowsCache },
+    dailyScore:      { chart: chartDaily,           legend: 'dailyLegend',           field: '得分',   y: 1,    mode: 'daily', rows: () => dailyRowsCache },
     dailyPlay:       { chart: chartDailyPlay,       legend: 'dailyPlayLegend',       field: '播放热度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
     dailySales:      { chart: chartDailySales,      legend: 'dailySalesLegend',      field: '畅销度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
     dailyRecommend:  { chart: chartDailyRecommend,  legend: 'dailyRecommendLegend',  field: '推荐度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
