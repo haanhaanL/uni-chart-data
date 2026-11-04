@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>腾讯音乐由你榜 · 前三追踪</title>
+<title>腾讯音乐由你榜 · TOP3追踪</title>
 <script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
@@ -208,9 +208,9 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">时间</th>
-                                        <th colspan="2">①</th>
-                                        <th colspan="2">②</th>
-                                        <th colspan="2">③</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
                                     </tr>
                                     <tr>
                                         <th>歌名-歌手</th><th>得分 / 增幅</th>
@@ -225,7 +225,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">周榜前三得分趋势</div>
+                        <div class="title">周榜 · 得分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="24">最近24小时</button>
@@ -326,9 +326,9 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">时间</th>
-                                        <th colspan="2">①</th>
-                                        <th colspan="2">②</th>
-                                        <th colspan="2">③</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
                                     </tr>
                                     <tr>
                                         <th>歌名-歌手</th><th>得分 / 增幅</th>
@@ -343,7 +343,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">日榜前三得分趋势</div>
+                        <div class="title">日榜 · 得分</div>
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
@@ -430,10 +430,8 @@
 </div>
 
 <script>
-// 循环配色
 const lineColors = ['#ea3690', '#7c3aed', '#00e268', '#f5cc0b', '#10b981', '#c4b5fd', '#ef4444', '#14b8a6', '#f97316', '#64748b'];
 
-// TOP 图四项固定色
 const rankFields = [
     { key: '得分',     color: '#ea3690' },
     { key: '播放热度', color: '#7c3aed' },
@@ -595,34 +593,7 @@ function buildAxis(rows, range) {
     return { rowsByColumn, times };
 }
 
-// 计算一组图（多字段）在当前 range 下的全局 min/max
-function calcGroupRange(rows, range, fields) {
-    const { rowsByColumn } = buildAxis(rows, range);
-    let min = Infinity, max = -Infinity;
-    rowsByColumn.forEach(r => {
-        if (!r) return;
-        fields.forEach(f => {
-            for (let rank = 1; rank <= 3; rank++) {
-                const s = r[`第${rank}名${f}`] || '';
-                const v = parseFloat(s);
-                if (!isNaN(v)) {
-                    if (v < min) min = v;
-                    if (v > max) max = v;
-                }
-            }
-        });
-    });
-    if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: undefined };
-    const pad = (max - min) * 0.05 || 1;
-    return { min: min - pad, max: max + pad };
-}
-
-function calcRankGroupRange(rows, range) {
-    const fields = rankFields.map(f => f.key);
-    return calcGroupRange(rows, range, fields);
-}
-
-function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, yMin, yMax) {
+function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
@@ -758,9 +729,8 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, y
         },
         yAxis: {
             type: 'value',
-            scale: true,
-            min: yMin,
-            max: yMax,
+            min: 10,
+            max: 100,
             interval: yInterval,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
@@ -771,7 +741,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, y
     chartInst.resize();
 }
 
-function renderRankChart(rows, chartInst, legendId, rank, range, mode, yMin, yMax) {
+function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
@@ -861,9 +831,8 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode, yMin, yMa
         },
         yAxis: {
             type: 'value',
-            scale: true,
-            min: yMin,
-            max: yMax,
+            min: 10,
+            max: 100,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
@@ -932,29 +901,10 @@ const rankChartConfig = {
 function renderChartByKey(key) {
     if (chartConfig[key]) {
         const cfg = chartConfig[key];
-        const range = chartState[key];
-        const rows = cfg.rows();
-
-        // 三维度组：三图共享范围
-        if (key === 'weeklyPlay' || key === 'weeklySales' || key === 'weeklyRecommend') {
-            const { min, max } = calcGroupRange(rows, range, ['播放热度', '畅销度', '推荐度']);
-            renderChart(rows, cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, min, max);
-            return;
-        }
-        if (key === 'dailyPlay' || key === 'dailySales' || key === 'dailyRecommend') {
-            const { min, max } = calcGroupRange(rows, range, ['播放热度', '畅销度', '推荐度']);
-            renderChart(rows, cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, min, max);
-            return;
-        }
-
-        // 得分图单独
-        renderChart(rows, cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode);
+        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode);
     } else if (rankChartConfig[key]) {
         const cfg = rankChartConfig[key];
-        const range = chartState[key];
-        const rows = cfg.rows();
-        const { min, max } = calcRankGroupRange(rows, range);
-        renderRankChart(rows, cfg.chart, cfg.legend, cfg.rank, range, cfg.mode, min, max);
+        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
     }
 }
 
@@ -1000,31 +950,7 @@ document.querySelectorAll('.range-tabs').forEach(wrap => {
             const key = wrap.dataset.chart;
             const range = this.dataset.range;
             chartState[key] = range;
-
-            // 同组图一起重绘，保持纵轴一致
-            if (key === 'weeklyPlay' || key === 'weeklySales' || key === 'weeklyRecommend') {
-                ['weeklyPlay', 'weeklySales', 'weeklyRecommend'].forEach(k => {
-                    chartState[k] = range;
-                    renderChartByKey(k);
-                });
-            } else if (key === 'dailyPlay' || key === 'dailySales' || key === 'dailyRecommend') {
-                ['dailyPlay', 'dailySales', 'dailyRecommend'].forEach(k => {
-                    chartState[k] = range;
-                    renderChartByKey(k);
-                });
-            } else if (key === 'weeklyRank1' || key === 'weeklyRank2' || key === 'weeklyRank3') {
-                ['weeklyRank1', 'weeklyRank2', 'weeklyRank3'].forEach(k => {
-                    chartState[k] = range;
-                    renderChartByKey(k);
-                });
-            } else if (key === 'dailyRank1' || key === 'dailyRank2' || key === 'dailyRank3') {
-                ['dailyRank1', 'dailyRank2', 'dailyRank3'].forEach(k => {
-                    chartState[k] = range;
-                    renderChartByKey(k);
-                });
-            } else {
-                renderChartByKey(key);
-            }
+            renderChartByKey(key);
         });
     });
 });
