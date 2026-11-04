@@ -593,6 +593,33 @@ function buildAxis(rows, range) {
     return { rowsByColumn, times };
 }
 
+// 得分图：按两个 Tab 合并算 y 范围，刻度保持整数
+function calcScoreYRange(rows, mode) {
+    const otherRange = (mode === 'weekly') ? '24' : 'today';
+    const ranges = ['3', otherRange];
+    let min = Infinity, max = -Infinity;
+    ranges.forEach(range => {
+        const { rowsByColumn } = buildAxis(rows, range);
+        rowsByColumn.forEach(r => {
+            if (!r) return;
+            for (let rank = 1; rank <= 3; rank++) {
+                const s = r[`第${rank}名得分`] || '';
+                const v = parseFloat(s);
+                if (!isNaN(v)) {
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                }
+            }
+        });
+    });
+    if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: undefined };
+    const pad = Math.max((max - min) * 0.08, 1);
+    min = Math.floor((min - pad) / 5) * 5;
+    max = Math.ceil((max + pad) / 5) * 5;
+    if (max <= min) max = min + 5;
+    return { min, max };
+}
+
 function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, autoY) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
@@ -671,6 +698,31 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
         ).join('');
     }
 
+    // 得分图：两个 Tab 合并算范围，刻度整数
+    let yAxisOpt;
+    if (autoY) {
+        const { min, max } = calcScoreYRange(rows, mode);
+        yAxisOpt = {
+            type: 'value',
+            min: min,
+            max: max,
+            minInterval: 1,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        };
+    } else {
+        yAxisOpt = {
+            type: 'value',
+            min: 0,
+            max: 100,
+            interval: 20,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        };
+    }
+
     chartInst.hideLoading();
     chartInst.setOption({
         tooltip: {
@@ -727,24 +779,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
             },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
-        yAxis: autoY
-            ? {
-                type: 'value',
-                scale: true,
-                interval: yInterval,
-                axisLabel: { fontSize: 10, color: '#888' },
-                axisLine: { lineStyle: { color: '#f0d6e4' } },
-                splitLine: { lineStyle: { color: '#faf0f6' } },
-            }
-            : {
-                type: 'value',
-                min: 10,
-                max: 100,
-                interval: yInterval,
-                axisLabel: { fontSize: 10, color: '#888' },
-                axisLine: { lineStyle: { color: '#f0d6e4' } },
-                splitLine: { lineStyle: { color: '#faf0f6' } },
-            },
+        yAxis: yAxisOpt,
         series: series,
     }, true);
     chartInst.resize();
@@ -840,8 +875,9 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         },
         yAxis: {
             type: 'value',
-            min: 10,
+            min: 0,
             max: 100,
+            interval: 20,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
