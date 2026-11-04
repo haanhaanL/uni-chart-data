@@ -34,6 +34,21 @@
     .chart-col-1 { flex: 1 1 100%; min-width: 0; }
     .chart-col-3 { flex: 1 1 320px; min-width: 0; }
 
+    .score-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: flex-start;
+    }
+    .score-table-col {
+        flex: 2 1 0;
+        min-width: 280px;
+        max-width: 100%;
+        display: flex; flex-direction: column;
+    }
+    .score-chart-col {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
     .card {
         background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
         padding: 12px 0; overflow: hidden; border: 1px solid rgba(234,54,144,0.10);
@@ -49,11 +64,19 @@
     }
     .chart-wrapper { width: 100%; height: 300px; }
 
-    /* 表格卡片：保持 520 高 */
     .score-table-col .card {
         height: 520px;
         display: flex; flex-direction: column;
         overflow: hidden;
+    }
+    .score-chart-col .card {
+        height: 520px;
+        display: flex; flex-direction: column;
+    }
+    .chart-wrapper-flex {
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
     }
 
     .table-scroll-box {
@@ -146,10 +169,15 @@
     }
 
     @media (max-width: 900px) {
-        .score-table-col {
+        .score-row { flex-direction: column; align-items: stretch; }
+        .score-table-col, .score-chart-col {
             flex: 1 1 100%; width: 100%; min-width: 0; max-width: 100%;
         }
-        .score-table-col .card { height: auto; min-height: 0; max-height: 420px; overflow: hidden; }
+        .score-table-col .card, .score-chart-col .card {
+            height: auto; min-height: 0;
+        }
+        .score-table-col .card { max-height: 420px; overflow: hidden; }
+        .chart-wrapper-flex { height: 280px; flex: none; }
 
         .table-scroll-box { overflow-x: auto; overflow-y: auto; }
         .recent-table { min-width: 720px; font-size: 11px; }
@@ -172,9 +200,8 @@
 
         <!-- ================= 周榜 ================= -->
         <div class="tab-panel active" id="panel-weekly">
-            <!-- 第一行：表格 -->
-            <div class="charts-row">
-                <div class="score-table-col chart-col-1">
+            <div class="score-row">
+                <div class="score-table-col">
                     <div class="card">
                         <div class="title">周榜 · 最近10条</div>
                         <div class="table-scroll-box">
@@ -203,10 +230,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- 第二行：总分图 + 总分增幅图 -->
-            <div class="charts-row">
-                <div class="chart-col-3">
+                <div class="score-chart-col">
                     <div class="card">
                         <div class="title">周榜 · 总分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
@@ -214,23 +238,10 @@
                             <button class="range-btn" data-range="24">最近24小时</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
-                        <div class="chart-wrapper" id="chartWeekly"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · 总分增幅</div>
-                        <div class="range-tabs" data-chart="weeklyDelta">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
-                        </div>
-                        <div class="chart-legend-text" id="weeklyDeltaLegend"></div>
-                        <div class="chart-wrapper" id="chartWeeklyDelta"></div>
+                        <div class="chart-wrapper-flex" id="chartWeekly"></div>
                     </div>
                 </div>
             </div>
-
-            <!-- 三维度 -->
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
@@ -307,9 +318,8 @@
 
         <!-- ================= 日榜 ================= -->
         <div class="tab-panel" id="panel-daily">
-            <!-- 第一行：表格 -->
-            <div class="charts-row">
-                <div class="score-table-col chart-col-1">
+            <div class="score-row">
+                <div class="score-table-col">
                     <div class="card">
                         <div class="title">日榜 · 最近10条</div>
                         <div class="table-scroll-box">
@@ -338,10 +348,7 @@
                         </div>
                     </div>
                 </div>
-            </div>
-            <!-- 第二行：总分图 + 总分增幅图 -->
-            <div class="charts-row">
-                <div class="chart-col-3">
+                <div class="score-chart-col">
                     <div class="card">
                         <div class="title">日榜 · 总分</div>
                         <div class="range-tabs" data-chart="dailyScore">
@@ -350,24 +357,10 @@
                         </div>
                         <div class="range-hint">00:00–06:00 数据不更新</div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
-                        <div class="chart-wrapper" id="chartDaily"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 总分增幅</div>
-                        <div class="range-tabs" data-chart="dailyDelta">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
-                        <div class="chart-legend-text" id="dailyDeltaLegend"></div>
-                        <div class="chart-wrapper" id="chartDailyDelta"></div>
+                        <div class="chart-wrapper-flex" id="chartDaily"></div>
                     </div>
                 </div>
             </div>
-
-            <!-- 三维度 -->
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
@@ -457,13 +450,6 @@ const rankFields = [
     { key: '推荐度',   color: '#00e268' },
 ];
 
-// 增幅图三条线：①/②/③ 官方增幅
-const deltaRankFields = [
-    { rank: 1, key: '第1名官方增幅', color: '#ea3690', label: '①增幅' },
-    { rank: 2, key: '第2名官方增幅', color: '#7c3aed', label: '②增幅' },
-    { rank: 3, key: '第3名官方增幅', color: '#f97316', label: '③增幅' },
-];
-
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
 const chartDailyPlay = echarts.init(document.getElementById('chartDailyPlay'));
@@ -472,9 +458,6 @@ const chartDailyRecommend = echarts.init(document.getElementById('chartDailyReco
 const chartWeeklyPlay = echarts.init(document.getElementById('chartWeeklyPlay'));
 const chartWeeklySales = echarts.init(document.getElementById('chartWeeklySales'));
 const chartWeeklyRecommend = echarts.init(document.getElementById('chartWeeklyRecommend'));
-
-const chartWeeklyDelta = echarts.init(document.getElementById('chartWeeklyDelta'));
-const chartDailyDelta = echarts.init(document.getElementById('chartDailyDelta'));
 
 const chartWeeklyRank1 = echarts.init(document.getElementById('chartWeeklyRank1'));
 const chartWeeklyRank2 = echarts.init(document.getElementById('chartWeeklyRank2'));
@@ -485,7 +468,6 @@ const chartDailyRank3 = echarts.init(document.getElementById('chartDailyRank3'))
 
 const allCharts = [chartDaily, chartWeekly, chartDailyPlay, chartDailySales,
                    chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend,
-                   chartWeeklyDelta, chartDailyDelta,
                    chartWeeklyRank1, chartWeeklyRank2, chartWeeklyRank3,
                    chartDailyRank1, chartDailyRank2, chartDailyRank3];
 allCharts.forEach(c => c.showLoading());
@@ -606,11 +588,13 @@ function buildAxis(rows, range) {
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
             rowByKey[key] = r;
         });
+        // 当天 06:06 到 23:06
         for (let h = 6; h <= 23; h++) {
             const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
             rowsByColumn.push(rowByKey[key] || null);
             times.push(`${String(h).padStart(2, '0')}:06`);
         }
+        // 24:00 用次日 00:16
         const key24 = `${fmtDateKey(nextDay)} 00:16`;
         rowsByColumn.push(rowByKey[key24] || null);
         times.push('24:00');
@@ -809,93 +793,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
     chartInst.resize();
 }
 
-// 得分增幅图：按名次 1/2/3 画官方增幅三条线
-function renderDeltaChart(rows, chartInst, legendId, range, mode) {
-    range = range || '3';
-    const legendEl = document.getElementById(legendId);
-    const { rowsByColumn, times } = buildAxis(rows, range);
-
-    const hasAny = rowsByColumn.some(r => r);
-    if (!hasAny) {
-        chartInst.hideLoading();
-        chartInst.setOption({
-            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
-        }, true);
-        if (legendEl) legendEl.innerHTML = '';
-        return;
-    }
-
-    const series = deltaRankFields.map(f => ({
-        name: f.label,
-        type: 'line',
-        data: rowsByColumn.map(r => {
-            if (!r) return null;
-            const s = r[f.key] || '';
-            return s === '' ? null : parseFloat(s);
-        }),
-        smooth: false,
-        symbol: 'circle',
-        symbolSize: 3,
-        connectNulls: false,
-        itemStyle: { color: f.color },
-        lineStyle: { width: 2, color: f.color },
-        emphasis: { focus: 'series' },
-    }));
-
-    if (legendEl) {
-        legendEl.innerHTML = deltaRankFields.map(f =>
-            `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.label}</span>`
-        ).join('');
-    }
-
-    chartInst.hideLoading();
-    chartInst.setOption({
-        tooltip: {
-            trigger: 'axis',
-            confine: true,
-            formatter: function(params) {
-                if (!params.length) return '';
-                const i = params[0].dataIndex;
-                const r = rowsByColumn[i];
-                const label = range === '3'
-                    ? (r && r['时间']) || times[i]
-                    : times[i] + (r ? '' : '（无数据）');
-                let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
-                if (r) {
-                    params.forEach(p => {
-                        if (p.value === null || p.value === undefined) return;
-                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
-                    });
-                }
-                return html;
-            }
-        },
-        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: times,
-            axisLabel: {
-                interval: range === '3' ? 'auto' : 1,
-                fontSize: 10,
-                color: '#888',
-                rotate: 45,
-            },
-            axisLine: { lineStyle: { color: '#f0d6e4' } },
-        },
-        yAxis: {
-            type: 'value',
-            scale: true,
-            minInterval: 0.1,
-            axisLabel: { fontSize: 10, color: '#888' },
-            axisLine: { lineStyle: { color: '#f0d6e4' } },
-            splitLine: { lineStyle: { color: '#faf0f6' } },
-        },
-        series: series,
-    }, true);
-    chartInst.resize();
-}
-
 function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
@@ -1019,7 +916,6 @@ let weeklyRowsCache = [];
 
 const chartState = {
     weeklyScore: '3',
-    weeklyDelta: '3',
     weeklyPlay: '3',
     weeklySales: '3',
     weeklyRecommend: '3',
@@ -1027,7 +923,6 @@ const chartState = {
     weeklyRank2: '3',
     weeklyRank3: '3',
     dailyScore: '3',
-    dailyDelta: '3',
     dailyPlay: '3',
     dailySales: '3',
     dailyRecommend: '3',
@@ -1047,11 +942,6 @@ const chartConfig = {
     dailyRecommend:  { chart: chartDailyRecommend,  legend: 'dailyRecommendLegend',  field: '推荐度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
 };
 
-const deltaChartConfig = {
-    weeklyDelta: { chart: chartWeeklyDelta, legend: 'weeklyDeltaLegend', mode: 'weekly', rows: () => weeklyRowsCache },
-    dailyDelta:  { chart: chartDailyDelta,  legend: 'dailyDeltaLegend',  mode: 'daily',  rows: () => dailyRowsCache },
-};
-
 const rankChartConfig = {
     weeklyRank1: { chart: chartWeeklyRank1, legend: 'weeklyRank1Legend', rank: 1, mode: 'weekly', rows: () => weeklyRowsCache },
     weeklyRank2: { chart: chartWeeklyRank2, legend: 'weeklyRank2Legend', rank: 2, mode: 'weekly', rows: () => weeklyRowsCache },
@@ -1066,9 +956,6 @@ function renderChartByKey(key) {
         const cfg = chartConfig[key];
         const autoY = (key === 'weeklyScore' || key === 'dailyScore');
         renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode, autoY);
-    } else if (deltaChartConfig[key]) {
-        const cfg = deltaChartConfig[key];
-        renderDeltaChart(cfg.rows(), cfg.chart, cfg.legend, chartState[key], cfg.mode);
     } else if (rankChartConfig[key]) {
         const cfg = rankChartConfig[key];
         renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
@@ -1097,7 +984,6 @@ function updateDailyDateLabels() {
     renderRecentTable(weeklyRows, 'weeklyTableBody');
 
     Object.keys(chartConfig).forEach(key => renderChartByKey(key));
-    Object.keys(deltaChartConfig).forEach(key => renderChartByKey(key));
     Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
 
     allCharts.forEach(c => c.resize());
