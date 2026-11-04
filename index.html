@@ -593,7 +593,7 @@ function buildAxis(rows, range) {
     return { rowsByColumn, times };
 }
 
-function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
+function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, autoY) {
     range = range || '3';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
@@ -727,15 +727,24 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
-        yAxis: {
-            type: 'value',
-            min: 10,
-            max: 100,
-            interval: yInterval,
-            axisLabel: { fontSize: 10, color: '#888' },
-            axisLine: { lineStyle: { color: '#f0d6e4' } },
-            splitLine: { lineStyle: { color: '#faf0f6' } },
-        },
+        yAxis: autoY
+            ? {
+                type: 'value',
+                scale: true,
+                interval: yInterval,
+                axisLabel: { fontSize: 10, color: '#888' },
+                axisLine: { lineStyle: { color: '#f0d6e4' } },
+                splitLine: { lineStyle: { color: '#faf0f6' } },
+            }
+            : {
+                type: 'value',
+                min: 10,
+                max: 100,
+                interval: yInterval,
+                axisLabel: { fontSize: 10, color: '#888' },
+                axisLine: { lineStyle: { color: '#f0d6e4' } },
+                splitLine: { lineStyle: { color: '#faf0f6' } },
+            },
         series: series,
     }, true);
     chartInst.resize();
@@ -901,7 +910,8 @@ const rankChartConfig = {
 function renderChartByKey(key) {
     if (chartConfig[key]) {
         const cfg = chartConfig[key];
-        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode);
+        const autoY = (key === 'weeklyScore' || key === 'dailyScore');
+        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode, autoY);
     } else if (rankChartConfig[key]) {
         const cfg = rankChartConfig[key];
         renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
