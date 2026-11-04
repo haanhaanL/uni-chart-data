@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>腾讯音乐由你榜 · TOP3数据追踪</title>
+<title>腾讯音乐由你榜 · 前三追踪</title>
 <script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
@@ -182,7 +182,7 @@
 </head>
 <body>
 <div class="container">
-    <h1>腾讯音乐由你榜 · TOP3数据</h1>
+    <h1>腾讯音乐由你榜 · 前三追踪</h1>
     <div class="update-time" id="updateTime"></div>
     <div id="loading">正在加载数据...</div>
 
@@ -209,9 +209,9 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">时间</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
+                                        <th colspan="2">①</th>
+                                        <th colspan="2">②</th>
+                                        <th colspan="2">③</th>
                                     </tr>
                                     <tr>
                                         <th>歌名-歌手</th><th>得分 / 增幅</th>
@@ -226,7 +226,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">周榜 · 得分</div>
+                        <div class="title">周榜前三得分趋势</div>
                         <div class="range-tabs" data-chart="weeklyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="24">最近24小时</button>
@@ -271,6 +271,43 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 新增：TOP1/2/3 四项走势 -->
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · TOP1</div>
+                        <div class="range-tabs" data-chart="weeklyRank1">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="24">最近24小时</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyRank1Legend"></div>
+                        <div class="chart-wrapper" id="chartWeeklyRank1"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · TOP2</div>
+                        <div class="range-tabs" data-chart="weeklyRank2">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="24">最近24小时</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyRank2Legend"></div>
+                        <div class="chart-wrapper" id="chartWeeklyRank2"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · TOP3</div>
+                        <div class="range-tabs" data-chart="weeklyRank3">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="24">最近24小时</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyRank3Legend"></div>
+                        <div class="chart-wrapper" id="chartWeeklyRank3"></div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ================= 日榜 ================= -->
@@ -290,9 +327,9 @@
                                 <thead>
                                     <tr>
                                         <th rowspan="2">时间</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
+                                        <th colspan="2">①</th>
+                                        <th colspan="2">②</th>
+                                        <th colspan="2">③</th>
                                     </tr>
                                     <tr>
                                         <th>歌名-歌手</th><th>得分 / 增幅</th>
@@ -307,7 +344,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">日榜 · 得分</div>
+                        <div class="title">日榜前三得分趋势</div>
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
@@ -352,12 +389,57 @@
                     </div>
                 </div>
             </div>
+
+            <!-- 新增：TOP1/2/3 四项走势 -->
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · TOP1</div>
+                        <div class="range-tabs" data-chart="dailyRank1">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today">--</button>
+                        </div>
+                        <div class="chart-legend-text" id="dailyRank1Legend"></div>
+                        <div class="chart-wrapper" id="chartDailyRank1"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · TOP2</div>
+                        <div class="range-tabs" data-chart="dailyRank2">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today">--</button>
+                        </div>
+                        <div class="chart-legend-text" id="dailyRank2Legend"></div>
+                        <div class="chart-wrapper" id="chartDailyRank2"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · TOP3</div>
+                        <div class="range-tabs" data-chart="dailyRank3">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today">--</button>
+                        </div>
+                        <div class="chart-legend-text" id="dailyRank3Legend"></div>
+                        <div class="chart-wrapper" id="chartDailyRank3"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
 const lineColors = ['#ea3690', '#7c3aed', '#e74c3c', '#2563eb', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#14b8a6', '#f97316'];
+
+// 四项走势固定配色
+const rankFields = [
+    { key: '得分', color: '#ea3690' },
+    { key: '播放热度', color: '#7c3aed' },
+    { key: '畅销度', color: '#2563eb' },
+    { key: '推荐度', color: '#10b981' },
+];
 
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
@@ -368,8 +450,18 @@ const chartWeeklyPlay = echarts.init(document.getElementById('chartWeeklyPlay'))
 const chartWeeklySales = echarts.init(document.getElementById('chartWeeklySales'));
 const chartWeeklyRecommend = echarts.init(document.getElementById('chartWeeklyRecommend'));
 
+// 新增 TOP 图
+const chartWeeklyRank1 = echarts.init(document.getElementById('chartWeeklyRank1'));
+const chartWeeklyRank2 = echarts.init(document.getElementById('chartWeeklyRank2'));
+const chartWeeklyRank3 = echarts.init(document.getElementById('chartWeeklyRank3'));
+const chartDailyRank1 = echarts.init(document.getElementById('chartDailyRank1'));
+const chartDailyRank2 = echarts.init(document.getElementById('chartDailyRank2'));
+const chartDailyRank3 = echarts.init(document.getElementById('chartDailyRank3'));
+
 const allCharts = [chartDaily, chartWeekly, chartDailyPlay, chartDailySales,
-                   chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend];
+                   chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend,
+                   chartWeeklyRank1, chartWeeklyRank2, chartWeeklyRank3,
+                   chartDailyRank1, chartDailyRank2, chartDailyRank3];
 allCharts.forEach(c => c.showLoading());
 
 function colorClass(v) {
@@ -446,18 +538,10 @@ function renderRecentTable(rows, tbodyId) {
     }).join('');
 }
 
-/**
- * range:
- *  '3'     -> 最近3小时，全部原始点
- *  '24'    -> 最近24小时，每小时06分（周榜）
- *  'today' -> 当天0-24，每小时06分（日榜）；0点用当天00:16，24点用次日00:06
- */
-function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
-    range = range || '3';
-    const legendEl = document.getElementById(legendId);
+// 生成时间轴/列数据（复用给普通图与 TOP 图）
+function buildAxis(rows, range) {
     const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
     const now = new Date();
-
     let rowsByColumn = [];
     let times = [];
 
@@ -477,25 +561,20 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
         const byMin06 = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
-            if (!t) return;
-            if (t.getMinutes() !== 6) return;
+            if (!t || t.getMinutes() !== 6) return;
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:06`;
             byMin06[key] = r;
         });
-        const axis = [];
         for (let i = 23; i >= 0; i--) {
             const d = new Date(now.getTime() - i * 60 * 60 * 1000);
             const key = `${fmtDateKey(d)} ${String(d.getHours()).padStart(2, '0')}:06`;
-            axis.push({ key, label: `${String(d.getHours()).padStart(2, '0')}:06`, row: byMin06[key] || null });
+            rowsByColumn.push(byMin06[key] || null);
+            times.push(`${String(d.getHours()).padStart(2, '0')}:06`);
         }
-        rowsByColumn = axis.map(a => a.row);
-        times = axis.map(a => a.label);
     } else {
-        // 'today'
         const baseDay = getTodayDateForDaily();
         const nextDay = new Date(baseDay);
         nextDay.setDate(nextDay.getDate() + 1);
-
         const rowByKey = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
@@ -503,20 +582,32 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
             rowByKey[key] = r;
         });
-
-        const axis = [];
         const key00 = `${fmtDateKey(baseDay)} 00:16`;
-        axis.push({ key: key00, label: '00:06', row: rowByKey[key00] || null });
+        rowsByColumn.push(rowByKey[key00] || null);
+        times.push('00:06');
         for (let h = 1; h <= 23; h++) {
             const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
-            axis.push({ key, label: `${String(h).padStart(2, '0')}:06`, row: rowByKey[key] || null });
+            rowsByColumn.push(rowByKey[key] || null);
+            times.push(`${String(h).padStart(2, '0')}:06`);
         }
         const key24 = `${fmtDateKey(nextDay)} 00:06`;
-        axis.push({ key: key24, label: '24:00', row: rowByKey[key24] || null });
-
-        rowsByColumn = axis.map(a => a.row);
-        times = axis.map(a => a.label);
+        rowsByColumn.push(rowByKey[key24] || null);
+        times.push('24:00');
     }
+
+    return { rowsByColumn, times };
+}
+
+/**
+ * range:
+ *  '3'     -> 最近3小时，全部原始点
+ *  '24'    -> 最近24小时，每小时06分（周榜）
+ *  'today' -> 当天0-24，每小时06分（日榜）
+ */
+function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
+    range = range || '3';
+    const legendEl = document.getElementById(legendId);
+    const { rowsByColumn, times } = buildAxis(rows, range);
 
     let latest = null;
     for (let i = rowsByColumn.length - 1; i >= 0; i--) {
@@ -624,7 +715,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
                             color = fv > 0 ? '#ea3690' : '#999';
                         }
 
-                        // 更紧凑：gap 2px，分值/增幅列 48px，行最小宽 150px
                         html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
                               + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
                               + `<span style="width:48px;text-align:right;white-space:nowrap;">${p.value}</span>`
@@ -641,7 +731,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             boundaryGap: false,
             data: times,
             axisLabel: {
-                interval: range === '3' ? 'auto' : 1,   // 3小时自动；24h/当日隔一个显示
+                interval: range === '3' ? 'auto' : 1,
                 fontSize: 10,
                 color: '#888',
                 rotate: 45,
@@ -652,6 +742,90 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode) {
             type: 'value',
             scale: true,
             interval: yInterval,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: series,
+    }, true);
+    chartInst.resize();
+}
+
+// TOP 图：某名次的四项走势
+function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
+    range = range || '3';
+    const legendEl = document.getElementById(legendId);
+    const { rowsByColumn, times } = buildAxis(rows, range);
+
+    // 若整段无数据，显示暂无数据
+    const hasAny = rowsByColumn.some(r => r);
+    if (!hasAny) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
+    const series = rankFields.map(f => ({
+        name: f.key,
+        type: 'line',
+        data: rowsByColumn.map(r => {
+            if (!r) return null;
+            const s = r[`第${rank}名${f.key}`] || '';
+            return s === '' ? null : parseFloat(s);
+        }),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 3,
+        connectNulls: false,
+        itemStyle: { color: f.color },
+        lineStyle: { width: 2, color: f.color },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        legendEl.innerHTML = rankFields.map(f =>
+            `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.key}</span>`
+        ).join('');
+    }
+
+    chartInst.hideLoading();
+    chartInst.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${times[i]}${r ? '' : '（无数据）'}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: {
+                interval: range === '3' ? 'auto' : 1,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+            },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            scale: true,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
@@ -685,10 +859,16 @@ const chartState = {
     weeklyPlay: '3',
     weeklySales: '3',
     weeklyRecommend: '3',
+    weeklyRank1: '3',
+    weeklyRank2: '3',
+    weeklyRank3: '3',
     dailyScore: '3',
     dailyPlay: '3',
     dailySales: '3',
     dailyRecommend: '3',
+    dailyRank1: '3',
+    dailyRank2: '3',
+    dailyRank3: '3',
 };
 
 const chartConfig = {
@@ -702,10 +882,23 @@ const chartConfig = {
     dailyRecommend:  { chart: chartDailyRecommend,  legend: 'dailyRecommendLegend',  field: '推荐度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
 };
 
+const rankChartConfig = {
+    weeklyRank1: { chart: chartWeeklyRank1, legend: 'weeklyRank1Legend', rank: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank2: { chart: chartWeeklyRank2, legend: 'weeklyRank2Legend', rank: 2, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank3: { chart: chartWeeklyRank3, legend: 'weeklyRank3Legend', rank: 3, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyRank1:  { chart: chartDailyRank1,  legend: 'dailyRank1Legend',  rank: 1, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank2:  { chart: chartDailyRank2,  legend: 'dailyRank2Legend',  rank: 2, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank3:  { chart: chartDailyRank3,  legend: 'dailyRank3Legend',  rank: 3, mode: 'daily',  rows: () => dailyRowsCache },
+};
+
 function renderChartByKey(key) {
-    const cfg = chartConfig[key];
-    if (!cfg) return;
-    renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode);
+    if (chartConfig[key]) {
+        const cfg = chartConfig[key];
+        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode);
+    } else if (rankChartConfig[key]) {
+        const cfg = rankChartConfig[key];
+        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
+    }
 }
 
 function updateDailyDateLabels() {
@@ -730,6 +923,7 @@ function updateDailyDateLabels() {
     renderRecentTable(weeklyRows, 'weeklyTableBody');
 
     Object.keys(chartConfig).forEach(key => renderChartByKey(key));
+    Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
 
     allCharts.forEach(c => c.resize());
 
