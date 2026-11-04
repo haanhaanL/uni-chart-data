@@ -161,6 +161,13 @@
         background: #ea3690; color: #fff; border-color: #ea3690;
     }
 
+    .range-hint {
+        text-align: center;
+        font-size: 11px;
+        color: #bbb;
+        margin: 0 8px 4px 8px;
+    }
+
     @media (max-width: 900px) {
         .score-row { flex-direction: column; align-items: stretch; }
         .score-table-col, .score-chart-col {
@@ -348,6 +355,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
                     </div>
@@ -361,6 +369,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailyPlayLegend"></div>
                         <div class="chart-wrapper" id="chartDailyPlay"></div>
                     </div>
@@ -372,6 +381,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailySalesLegend"></div>
                         <div class="chart-wrapper" id="chartDailySales"></div>
                     </div>
@@ -383,6 +393,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailyRecommendLegend"></div>
                         <div class="chart-wrapper" id="chartDailyRecommend"></div>
                     </div>
@@ -398,6 +409,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailyRank1Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank1"></div>
                     </div>
@@ -409,6 +421,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailyRank2Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank2"></div>
                     </div>
@@ -420,6 +433,7 @@
                             <button class="range-btn active" data-range="3">最近3小时</button>
                             <button class="range-btn" data-range="today">--</button>
                         </div>
+                        <div class="range-hint">00:00–06:00 数据不更新，曲线可能为直线</div>
                         <div class="chart-legend-text" id="dailyRank3Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank3"></div>
                     </div>
@@ -577,15 +591,14 @@ function buildAxis(rows, range) {
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
             rowByKey[key] = r;
         });
-        const key00 = `${fmtDateKey(baseDay)} 00:16`;
-        rowsByColumn.push(rowByKey[key00] || null);
-        times.push('00:06');
-        for (let h = 1; h <= 23; h++) {
+        // 当天 06:06 到 23:06
+        for (let h = 6; h <= 23; h++) {
             const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
             rowsByColumn.push(rowByKey[key] || null);
             times.push(`${String(h).padStart(2, '0')}:06`);
         }
-        const key24 = `${fmtDateKey(nextDay)} 00:06`;
+        // 24:00 用次日 00:16
+        const key24 = `${fmtDateKey(nextDay)} 00:16`;
         rowsByColumn.push(rowByKey[key24] || null);
         times.push('24:00');
     }
@@ -593,7 +606,6 @@ function buildAxis(rows, range) {
     return { rowsByColumn, times };
 }
 
-// 得分图：按两个 Tab 合并算 y 范围，刻度保持整数
 function calcScoreYRange(rows, mode) {
     const otherRange = (mode === 'weekly') ? '24' : 'today';
     const ranges = ['3', otherRange];
@@ -698,7 +710,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
         ).join('');
     }
 
-    // 得分图：两个 Tab 合并算范围，刻度整数
     let yAxisOpt;
     if (autoY) {
         const { min, max } = calcScoreYRange(rows, mode);
