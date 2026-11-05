@@ -685,4 +685,282 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
             confine: true,
             formatter: function(params) {
                 if (!params.length) return '';
-                const i = params[0
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                const label = range === '3'
+                    ? (r && r['时间']) || times[i]
+                    : times[i] + (r ? '' : '（无数据）');
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+
+                        let deltaRaw = '';
+                        for (let rank = 1; rank <= 3; rank++) {
+                            if (songKey(r, rank) === p.seriesName) {
+                                deltaRaw = r[`第${rank}名官方增幅`] || '';
+                                break;
+                            }
+                        }
+
+                        let text = '';
+                        let color = '#999';
+                        if (deltaRaw !== '') {
+                            const fv = parseFloat(deltaRaw);
+                            text = (fv > 0 ? '+' : '') + deltaRaw;
+                            color = fv > 0 ? '#ea3690' : '#999';
+                        }
+
+                        html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
+                              + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;">${p.value}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
+                              + `</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: {
+                interval: range === '3' ? 'auto' : 1,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+            },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: yAxisOpt,
+        series: series,
+    }, true);
+    chartInst.resize();
+}
+
+function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
+    range = range || '24';
+    const legendEl = document.getElementById(legendId);
+    const { rowsByColumn, times } = buildAxis(rows, range);
+
+    let latestRow = null;
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        if (rowsByColumn[i]) { latestRow = rowsByColumn[i]; break; }
+    }
+
+    if (!latestRow) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
+    const series = rankFields.map(f => ({
+        name: f.key,
+        type: 'line',
+        data: rowsByColumn.map(r => {
+            if (!r) return null;
+            const s = r[`第${rank}名${f.key}`] || '';
+            return s === '' ? null : parseFloat(s);
+        }),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 3,
+        connectNulls: false,
+        itemStyle: { color: f.color },
+        lineStyle: { width: 2, color: f.color },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        const name = latestRow[`第${rank}名歌名`] || '';
+        const singer = latestRow[`第${rank}名歌手`] || '';
+        const songLabel = singer ? `${singer}-${name}` : name;
+        const songHtml = songLabel
+            ? `<span style="color:#ea3690;font-weight:bold;">当前 TOP${rank}：${songLabel}</span><br>`
+            : '';
+        legendEl.innerHTML = songHtml + rankFields.map(f =>
+            `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.key}</span>`
+        ).join('');
+    }
+
+    chartInst.hideLoading();
+    chartInst.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                const timeText = times[i] + (r ? '' : '（无数据）');
+                let songText = '';
+                if (r) {
+                    const name = r[`第${rank}名歌名`] || '';
+                    const singer = r[`第${rank}名歌手`] || '';
+                    const song = singer ? `${singer}-${name}` : name;
+                    if (song) songText = ` · ${song}`;
+                }
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeText}${songText}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: {
+                interval: range === '3' ? 'auto' : 1,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+            },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            interval: 20,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: series,
+    }, true);
+    chartInst.resize();
+}
+
+function loadCsv(url) {
+    return new Promise((resolve) => {
+        Papa.parse(url + '?t=' + new Date().getTime(), {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            complete: (res) => resolve(res.data || []),
+            error: (err) => {
+                console.error('加载失败', url, err);
+                resolve([]);
+            }
+        });
+    });
+}
+
+let dailyRowsCache = [];
+let weeklyRowsCache = [];
+
+const chartState = {
+    weeklyScore: '24',
+    weeklyRank1: '24',
+    weeklyRank2: '24',
+    weeklyRank3: '24',
+    dailyScore: '3',
+    dailyRank1: '3',
+    dailyRank2: '3',
+    dailyRank3: '3',
+};
+
+const chartConfig = {
+    weeklyScore: { chart: chartWeekly, legend: 'weeklyLegend', field: '得分', y: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyScore:  { chart: chartDaily,  legend: 'dailyLegend',  field: '得分', y: 1, mode: 'daily',  rows: () => dailyRowsCache },
+};
+
+const rankChartConfig = {
+    weeklyRank1: { chart: chartWeeklyRank1, legend: 'weeklyRank1Legend', rank: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank2: { chart: chartWeeklyRank2, legend: 'weeklyRank2Legend', rank: 2, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank3: { chart: chartWeeklyRank3, legend: 'weeklyRank3Legend', rank: 3, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyRank1:  { chart: chartDailyRank1,  legend: 'dailyRank1Legend',  rank: 1, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank2:  { chart: chartDailyRank2,  legend: 'dailyRank2Legend',  rank: 2, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank3:  { chart: chartDailyRank3,  legend: 'dailyRank3Legend',  rank: 3, mode: 'daily',  rows: () => dailyRowsCache },
+};
+
+function renderChartByKey(key) {
+    if (chartConfig[key]) {
+        const cfg = chartConfig[key];
+        const autoY = (key === 'weeklyScore' || key === 'dailyScore');
+        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode, autoY);
+    } else if (rankChartConfig[key]) {
+        const cfg = rankChartConfig[key];
+        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
+    }
+}
+
+function updateDailyDateLabels() {
+    refreshDailyDateButtons();
+}
+
+(async function init() {
+    updateDailyDateLabels();
+
+    const [dailyRows, weeklyRows] = await Promise.all([
+        loadCsv('uni_chart_daily.csv'),
+        loadCsv('uni_chart_weekly.csv'),
+    ]);
+
+    dailyRowsCache = dailyRows;
+    weeklyRowsCache = weeklyRows;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    renderRecentTable(dailyRows, 'dailyTableBody');
+    renderRecentTable(weeklyRows, 'weeklyTableBody');
+
+    Object.keys(chartConfig).forEach(key => renderChartByKey(key));
+    Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
+
+    allCharts.forEach(c => c.resize());
+
+    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+    }
+
+    setInterval(updateDailyDateLabels, 60 * 1000);
+})();
+
+document.querySelectorAll('.range-tabs').forEach(wrap => {
+    wrap.querySelectorAll('.range-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            wrap.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const key = wrap.dataset.chart;
+            const range = this.dataset.range;
+            chartState[key] = range;
+            renderChartByKey(key);
+        });
+    });
+});
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+        allCharts.forEach(c => c.resize());
+    });
+});
+
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        allCharts.forEach(c => c.resize());
+    }, 200);
+});
+</script>
+</body>
+</html>
