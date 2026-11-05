@@ -286,6 +286,9 @@
 
         <!-- ================= 日榜 ================= -->
         <div class="tab-panel" id="panel-daily">
+            <div class="range-hint" style="margin-bottom:8px;">
+                00:00–06:00 数据不更新（<span id="dailyTopDate" style="color:#ea3690;font-weight:bold;"></span>）
+            </div>
             <div class="score-row">
                 <div class="score-table-col">
                     <div class="card">
@@ -318,8 +321,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title" id="dailyScoreTitle">日榜 · 总分</div>
-                        <div class="range-hint">00:00–06:00 数据不更新</div>
+                        <div class="title">日榜 · 总分</div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
                     </div>
@@ -330,24 +332,21 @@
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
-                        <div class="title" id="dailyRank1Title">日榜 · TOP1</div>
-                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
+                        <div class="title">日榜 · TOP1</div>
                         <div class="chart-legend-text" id="dailyRank1Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank1"></div>
                     </div>
                 </div>
                 <div class="chart-col-3">
                     <div class="card">
-                        <div class="title" id="dailyRank2Title">日榜 · TOP2</div>
-                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
+                        <div class="title">日榜 · TOP2</div>
                         <div class="chart-legend-text" id="dailyRank2Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank2"></div>
                     </div>
                 </div>
                 <div class="chart-col-3">
                     <div class="card">
-                        <div class="title" id="dailyRank3Title">日榜 · TOP3</div>
-                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
+                        <div class="title">日榜 · TOP3</div>
                         <div class="chart-legend-text" id="dailyRank3Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank3"></div>
                     </div>
@@ -422,23 +421,9 @@ function fmtDateKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function refreshDailyDateButtons() {
-    // 日榜已无 Tab，仅用于刷新标题
-    refreshDailyTitles();
-}
-
-function refreshDailyTitles() {
-    const label = fmtDateLabel(getTodayDateForDaily());
-    const map = {
-        dailyScoreTitle: `日榜 · 总分（${label}）`,
-        dailyRank1Title: `日榜 · TOP1（${label}）`,
-        dailyRank2Title: `日榜 · TOP2（${label}）`,
-        dailyRank3Title: `日榜 · TOP3（${label}）`,
-    };
-    Object.keys(map).forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = map[id];
-    });
+function refreshDailyTopDate() {
+    const el = document.getElementById('dailyTopDate');
+    if (el) el.textContent = fmtDateLabel(getTodayDateForDaily());
 }
 
 function renderRecentTable(rows, tbodyId) {
@@ -900,11 +885,11 @@ function renderChartByKey(key) {
 }
 
 function updateDailyDateLabels() {
-    refreshDailyTitles();
+    refreshDailyTopDate();
 }
 
 (async function init() {
-    refreshDailyTitles();
+    refreshDailyTopDate();
 
     const [dailyRows, weeklyRows] = await Promise.all([
         loadCsv('uni_chart_daily.csv'),
