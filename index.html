@@ -234,46 +234,11 @@
                     <div class="card">
                         <div class="title">周榜 · 总分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="7d">最近七天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="charts-row">
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · 播放热度</div>
-                        <div class="range-tabs" data-chart="weeklyPlay">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
-                        </div>
-                        <div class="chart-legend-text" id="weeklyPlayLegend"></div>
-                        <div class="chart-wrapper" id="chartWeeklyPlay"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · 畅销度</div>
-                        <div class="range-tabs" data-chart="weeklySales">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
-                        </div>
-                        <div class="chart-legend-text" id="weeklySalesLegend"></div>
-                        <div class="chart-wrapper" id="chartWeeklySales"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · 推荐度</div>
-                        <div class="range-tabs" data-chart="weeklyRecommend">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
-                        </div>
-                        <div class="chart-legend-text" id="weeklyRecommendLegend"></div>
-                        <div class="chart-wrapper" id="chartWeeklyRecommend"></div>
                     </div>
                 </div>
             </div>
@@ -284,8 +249,8 @@
                     <div class="card">
                         <div class="title">周榜 · TOP1</div>
                         <div class="range-tabs" data-chart="weeklyRank1">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="7d">最近七天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank1Legend"></div>
                         <div class="chart-wrapper" id="chartWeeklyRank1"></div>
@@ -295,8 +260,8 @@
                     <div class="card">
                         <div class="title">周榜 · TOP2</div>
                         <div class="range-tabs" data-chart="weeklyRank2">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="7d">最近七天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank2Legend"></div>
                         <div class="chart-wrapper" id="chartWeeklyRank2"></div>
@@ -306,8 +271,8 @@
                     <div class="card">
                         <div class="title">周榜 · TOP3</div>
                         <div class="range-tabs" data-chart="weeklyRank3">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="7d">最近七天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank3Legend"></div>
                         <div class="chart-wrapper" id="chartWeeklyRank3"></div>
@@ -358,41 +323,6 @@
                         <div class="range-hint">00:00–06:00 数据不更新</div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="charts-row">
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 播放热度</div>
-                        <div class="range-tabs" data-chart="dailyPlay">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
-                        <div class="chart-legend-text" id="dailyPlayLegend"></div>
-                        <div class="chart-wrapper" id="chartDailyPlay"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 畅销度</div>
-                        <div class="range-tabs" data-chart="dailySales">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
-                        <div class="chart-legend-text" id="dailySalesLegend"></div>
-                        <div class="chart-wrapper" id="chartDailySales"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · 推荐度</div>
-                        <div class="range-tabs" data-chart="dailyRecommend">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
-                        <div class="chart-legend-text" id="dailyRecommendLegend"></div>
-                        <div class="chart-wrapper" id="chartDailyRecommend"></div>
                     </div>
                 </div>
             </div>
@@ -452,12 +382,6 @@ const rankFields = [
 
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
-const chartDailyPlay = echarts.init(document.getElementById('chartDailyPlay'));
-const chartDailySales = echarts.init(document.getElementById('chartDailySales'));
-const chartDailyRecommend = echarts.init(document.getElementById('chartDailyRecommend'));
-const chartWeeklyPlay = echarts.init(document.getElementById('chartWeeklyPlay'));
-const chartWeeklySales = echarts.init(document.getElementById('chartWeeklySales'));
-const chartWeeklyRecommend = echarts.init(document.getElementById('chartWeeklyRecommend'));
 
 const chartWeeklyRank1 = echarts.init(document.getElementById('chartWeeklyRank1'));
 const chartWeeklyRank2 = echarts.init(document.getElementById('chartWeeklyRank2'));
@@ -466,8 +390,7 @@ const chartDailyRank1 = echarts.init(document.getElementById('chartDailyRank1'))
 const chartDailyRank2 = echarts.init(document.getElementById('chartDailyRank2'));
 const chartDailyRank3 = echarts.init(document.getElementById('chartDailyRank3'));
 
-const allCharts = [chartDaily, chartWeekly, chartDailyPlay, chartDailySales,
-                   chartDailyRecommend, chartWeeklyPlay, chartWeeklySales, chartWeeklyRecommend,
+const allCharts = [chartDaily, chartWeekly,
                    chartWeeklyRank1, chartWeeklyRank2, chartWeeklyRank3,
                    chartDailyRank1, chartDailyRank2, chartDailyRank3];
 allCharts.forEach(c => c.showLoading());
@@ -577,6 +500,22 @@ function buildAxis(rows, range) {
             rowsByColumn.push(byMin06[key] || null);
             times.push(`${String(d.getHours()).padStart(2, '0')}:06`);
         }
+    } else if (range === '7d') {
+        // 最近7天，每天取当天最新一条
+        const dayMap = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const dayKey = fmtDateKey(t);
+            dayMap[dayKey] = r;
+        });
+        const today = new Date();
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+            const key = fmtDateKey(d);
+            rowsByColumn.push(dayMap[key] || null);
+            times.push(`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        }
     } else {
         const baseDay = getTodayDateForDaily();
         const nextDay = new Date(baseDay);
@@ -588,13 +527,11 @@ function buildAxis(rows, range) {
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
             rowByKey[key] = r;
         });
-        // 当天 06:06 到 23:06
         for (let h = 6; h <= 23; h++) {
             const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
             rowsByColumn.push(rowByKey[key] || null);
             times.push(`${String(h).padStart(2, '0')}:06`);
         }
-        // 24:00 用次日 00:16
         const key24 = `${fmtDateKey(nextDay)} 00:16`;
         rowsByColumn.push(rowByKey[key24] || null);
         times.push('24:00');
@@ -604,8 +541,8 @@ function buildAxis(rows, range) {
 }
 
 function calcScoreYRange(rows, mode) {
-    const otherRange = (mode === 'weekly') ? '24' : 'today';
-    const ranges = ['3', otherRange];
+    const otherRange = (mode === 'weekly') ? '7d' : 'today';
+    const ranges = ['24', otherRange];
     let min = Infinity, max = -Infinity;
     ranges.forEach(range => {
         const { rowsByColumn } = buildAxis(rows, range);
@@ -915,31 +852,19 @@ let dailyRowsCache = [];
 let weeklyRowsCache = [];
 
 const chartState = {
-    weeklyScore: '3',
-    weeklyPlay: '3',
-    weeklySales: '3',
-    weeklyRecommend: '3',
-    weeklyRank1: '3',
-    weeklyRank2: '3',
-    weeklyRank3: '3',
+    weeklyScore: '24',
+    weeklyRank1: '24',
+    weeklyRank2: '24',
+    weeklyRank3: '24',
     dailyScore: '3',
-    dailyPlay: '3',
-    dailySales: '3',
-    dailyRecommend: '3',
     dailyRank1: '3',
     dailyRank2: '3',
     dailyRank3: '3',
 };
 
 const chartConfig = {
-    weeklyScore:     { chart: chartWeekly,          legend: 'weeklyLegend',          field: '得分',   y: 1,    mode: 'weekly', rows: () => weeklyRowsCache },
-    weeklyPlay:      { chart: chartWeeklyPlay,      legend: 'weeklyPlayLegend',      field: '播放热度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
-    weeklySales:     { chart: chartWeeklySales,     legend: 'weeklySalesLegend',     field: '畅销度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
-    weeklyRecommend: { chart: chartWeeklyRecommend, legend: 'weeklyRecommendLegend', field: '推荐度', y: undefined, mode: 'weekly', rows: () => weeklyRowsCache },
-    dailyScore:      { chart: chartDaily,           legend: 'dailyLegend',           field: '得分',   y: 1,    mode: 'daily', rows: () => dailyRowsCache },
-    dailyPlay:       { chart: chartDailyPlay,       legend: 'dailyPlayLegend',       field: '播放热度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
-    dailySales:      { chart: chartDailySales,      legend: 'dailySalesLegend',      field: '畅销度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
-    dailyRecommend:  { chart: chartDailyRecommend,  legend: 'dailyRecommendLegend',  field: '推荐度', y: undefined, mode: 'daily', rows: () => dailyRowsCache },
+    weeklyScore: { chart: chartWeekly, legend: 'weeklyLegend', field: '得分', y: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyScore:  { chart: chartDaily,  legend: 'dailyLegend',  field: '得分', y: 1, mode: 'daily',  rows: () => dailyRowsCache },
 };
 
 const rankChartConfig = {
