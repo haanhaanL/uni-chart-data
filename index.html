@@ -12,17 +12,6 @@
         font-family: sans-serif;
         display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
     }
-    /* 全屏平铺水印 */
-    body::after {
-      content: "";
-      position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      pointer-events: none;
-      z-index: 99998;
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><text x='20' y='70' font-size='28' font-weight='900' fill='rgba(234,54,144,0.06)' transform='rotate(-25 100 60)'>mzc051</text></svg>");
-      background-repeat: repeat;
-      background-size: 200px 120px;
-    }
     .container { width: 100%; max-width: 1600px; }
     h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
@@ -212,7 +201,7 @@
         <!-- ================= 周榜 ================= -->
         <div class="tab-panel active" id="panel-weekly">
             <div class="range-hint" style="margin-bottom:8px;">
-                周榜最近十天：每天取该有效日最新一条；00:00–00:10 的数据计入前一天；当日按最新显示。
+                每日数据按次日0:06算，当日按最新显示
             </div>
             <div class="score-row">
                 <div class="score-table-col">
@@ -329,11 +318,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">日榜 · 总分</div>
-                        <div class="range-tabs" data-chart="dailyScore">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
-                        </div>
+                        <div class="title" id="dailyScoreTitle">日榜 · 总分</div>
                         <div class="range-hint">00:00–06:00 数据不更新</div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
@@ -345,11 +330,7 @@
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
-                        <div class="title">日榜 · TOP1</div>
-                        <div class="range-tabs" data-chart="dailyRank1">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
+                        <div class="title" id="dailyRank1Title">日榜 · TOP1</div>
                         <div class="range-hint">00:00–06:00 总分数据不更新</div>
                         <div class="chart-legend-text" id="dailyRank1Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank1"></div>
@@ -357,11 +338,7 @@
                 </div>
                 <div class="chart-col-3">
                     <div class="card">
-                        <div class="title">日榜 · TOP2</div>
-                        <div class="range-tabs" data-chart="dailyRank2">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
+                        <div class="title" id="dailyRank2Title">日榜 · TOP2</div>
                         <div class="range-hint">00:00–06:00 总分数据不更新</div>
                         <div class="chart-legend-text" id="dailyRank2Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank2"></div>
@@ -369,11 +346,7 @@
                 </div>
                 <div class="chart-col-3">
                     <div class="card">
-                        <div class="title">日榜 · TOP3</div>
-                        <div class="range-tabs" data-chart="dailyRank3">
-                            <button class="range-btn active" data-range="3">最近3小时</button>
-                            <button class="range-btn" data-range="today">--</button>
-                        </div>
+                        <div class="title" id="dailyRank3Title">日榜 · TOP3</div>
                         <div class="range-hint">00:00–06:00 总分数据不更新</div>
                         <div class="chart-legend-text" id="dailyRank3Legend"></div>
                         <div class="chart-wrapper" id="chartDailyRank3"></div>
@@ -450,9 +423,21 @@ function fmtDateKey(d) {
 }
 
 function refreshDailyDateButtons() {
+    // 日榜已无 Tab，仅用于刷新标题
+    refreshDailyTitles();
+}
+
+function refreshDailyTitles() {
     const label = fmtDateLabel(getTodayDateForDaily());
-    document.querySelectorAll('.range-tabs[data-chart^="daily"] .range-btn[data-range="today"]').forEach(btn => {
-        btn.textContent = label;
+    const map = {
+        dailyScoreTitle: `日榜 · 总分（${label}）`,
+        dailyRank1Title: `日榜 · TOP1（${label}）`,
+        dailyRank2Title: `日榜 · TOP2（${label}）`,
+        dailyRank3Title: `日榜 · TOP3（${label}）`,
+    };
+    Object.keys(map).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = map[id];
     });
 }
 
@@ -562,8 +547,12 @@ function buildAxis(rows, range) {
 }
 
 function calcScoreYRange(rows, mode) {
-    const otherRange = (mode === 'weekly') ? '10d' : 'today';
-    const ranges = ['24', otherRange];
+    let ranges;
+    if (mode === 'weekly') {
+        ranges = ['24', '10d'];
+    } else {
+        ranges = ['today'];
+    }
     let min = Infinity, max = -Infinity;
     ranges.forEach(range => {
         const { rowsByColumn } = buildAxis(rows, range);
@@ -877,10 +866,10 @@ const chartState = {
     weeklyRank1: '24',
     weeklyRank2: '24',
     weeklyRank3: '24',
-    dailyScore: '3',
-    dailyRank1: '3',
-    dailyRank2: '3',
-    dailyRank3: '3',
+    dailyScore: 'today',
+    dailyRank1: 'today',
+    dailyRank2: 'today',
+    dailyRank3: 'today',
 };
 
 const chartConfig = {
@@ -901,19 +890,21 @@ function renderChartByKey(key) {
     if (chartConfig[key]) {
         const cfg = chartConfig[key];
         const autoY = (key === 'weeklyScore' || key === 'dailyScore');
-        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode, autoY);
+        const range = key.startsWith('daily') ? 'today' : chartState[key];
+        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, autoY);
     } else if (rankChartConfig[key]) {
         const cfg = rankChartConfig[key];
-        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
+        const range = key.startsWith('daily') ? 'today' : chartState[key];
+        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, range, cfg.mode);
     }
 }
 
 function updateDailyDateLabels() {
-    refreshDailyDateButtons();
+    refreshDailyTitles();
 }
 
 (async function init() {
-    updateDailyDateLabels();
+    refreshDailyTitles();
 
     const [dailyRows, weeklyRows] = await Promise.all([
         loadCsv('uni_chart_daily.csv'),
