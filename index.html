@@ -3,1419 +3,964 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>打榜数据录入 · 汇总</title>
-<link rel="stylesheet" href="common.css">
-<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<title>腾讯音乐由你榜 · TOP3追踪</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
-  body {
-    display: block;
-    background: #faf7f9;
-    min-height: 100vh;
-    padding: 6px;
-    overflow: auto;
-  }
-  /* 全屏平铺水印 */
-  body::after {
-    content: "";
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    pointer-events: none;
-    z-index: 99998;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><text x='20' y='70' font-size='28' font-weight='900' fill='rgba(234,54,144,0.06)' transform='rotate(-25 100 60)'>mzc051</text></svg>");
-    background-repeat: repeat;
-    background-size: 200px 120px;
-  }
-
-  /* 标题区：居中 */
-  .header-area {
-    max-width: 1600px;
-    margin: 0 auto 6px;
-    text-align: center;
-    padding: 0 4px;
-  }
-  .header-area h1 {
-    color: #ea3690;
-    font-size: 18px;
-    margin: 22px 0 10px;
-  }
-  .header-area .subtitle {
-    color: #999;
-    font-size: 12px;
-    margin-bottom: 6px;
-  }
-
-  /* 登录按钮：单独一行右对齐 */
-  .auth-row {
-    max-width: 1600px;
-    margin: 0 auto 12px;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 10px;
-    padding: 0 4px;
-  }
-  .auth-text-btn {
-    background: transparent;
-    border: none;
-    color: #ea3690;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    padding: 2px 0;
-    font-family: inherit;
-    transition: 0.15s;
-    white-space: nowrap;
-  }
-  .auth-text-btn:hover {
-    text-decoration: underline;
-  }
-  .auth-text-btn.danger {
-    color: #e74c3c;
-  }
-  .auth-user {
-    font-size: 12px;
-    color: #555;
-    font-weight: bold;
-    white-space: nowrap;
-  }
-  .auth-user b {
-    color: #ea3690;
-  }
-
-  .global-toolbar {
-    max-width: 1600px;
-    margin: 0 auto 14px;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
-    border: 1px solid rgba(234,54,144,0.10);
-    padding: 10px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-  .global-toolbar .label {
-    font-size: 12px; font-weight: bold; color: #ea3690;
-    white-space: nowrap; margin-right: 2px;
-  }
-  .global-toolbar input.new-account {
-    flex: 1 1 260px; min-width: 200px; height: 32px; padding: 0 10px;
-    border: 1px dashed #f0d6e4; border-radius: 8px; background: #fdf7fa;
-    color: #555; font-size: 12px; font-family: inherit; outline: none; transition: 0.15s;
-  }
-  .global-toolbar input.new-account:focus {
-    border-color: #ea3690; border-style: solid; background: #fff;
-    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
-  }
-  .global-toolbar input.new-account::placeholder { color: #bbb; }
-  .global-toolbar button {
-    height: 32px; padding: 0 14px; border-radius: 16px;
-    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
-    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
-    outline: none; font-family: inherit; white-space: nowrap;
-  }
-  .global-toolbar button:hover { background: rgba(234,54,144,0.06); }
-  .global-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
-  .global-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
-  .global-toolbar .count { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
-  .global-toolbar .count b { color: #ea3690; }
-
-  .backup-toolbar {
-    max-width: 1600px;
-    margin: 0 auto 14px;
-    background: #fff;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
-    border: 1px solid rgba(234,54,144,0.10);
-    padding: 10px 12px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px;
-  }
-  .backup-toolbar .label {
-    font-size: 12px; font-weight: bold; color: #ea3690;
-    white-space: nowrap; margin-right: 2px;
-  }
-  .backup-toolbar button {
-    height: 32px; padding: 0 14px; border-radius: 16px;
-    border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
-    font-size: 12px; font-weight: bold; cursor: pointer; transition: all 0.2s ease;
-    outline: none; font-family: inherit; white-space: nowrap;
-  }
-  .backup-toolbar button:hover { background: rgba(234,54,144,0.06); }
-  .backup-toolbar button:disabled {
-    opacity: 0.45; cursor: not-allowed;
-    border-color: #e0e0e0; color: #aaa;
-  }
-  .backup-toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
-  .backup-toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
-  .backup-toolbar .hint { font-size: 11px; color: #999; white-space: nowrap; margin-left: auto; }
-
-  .module-tabs {
-    display: none;
-    max-width: 1600px;
-    margin: 0 auto 10px;
-    gap: 0;
-    flex-wrap: nowrap;
-    overflow: hidden;
-    background: #fff;
-    border: 1px solid rgba(234,54,144,0.35);
-    border-radius: 18px;
-    padding: 3px;
-    box-shadow: 0 2px 8px rgba(234,54,144,0.06);
-  }
-  .module-tab-btn {
-    flex: 1;
-    min-width: 0;
-    padding: 7px 6px;
-    border-radius: 15px;
-    border: none;
-    background: transparent;
-    color: #ea3690;
-    font-size: 12px;
-    font-weight: bold;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    outline: none;
-    font-family: inherit;
-    white-space: nowrap;
-  }
-  .module-tab-btn.active {
-    background: #ea3690;
-    color: #fff;
-    box-shadow: 0 2px 6px rgba(234,54,144,0.25);
-  }
-
-  .module-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-    width: 100%;
-    max-width: 1600px;
-    margin: 0 auto 40px;
-    align-items: stretch;
-  }
-  .module-card {
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.07);
-    border: 1px solid rgba(234,54,144,0.10);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
-  .module-card .module-title {
-    background: #ea3690; color: #fff; font-size: 13px; font-weight: bold;
-    padding: 7px 14px; text-align: center; flex-shrink: 0;
-  }
-  .module-card iframe {
-    width: 100%;
-    border: 0;
-    display: block;
-    background: #fff;
-    height: 420px;
-    min-height: 120px;
-  }
-
-  @media (max-width: 900px) {
-    .header-area h1 { font-size: 16px; margin: 16px 0 8px; }
-    .auth-row { justify-content: flex-end; }
-    .module-tabs { display: flex; }
-    .module-grid {
-      display: block;
-      margin-bottom: 30px;
+    body {
+        margin: 0; padding: 8px; background-color: #faf7f9;
+        font-family: sans-serif;
+        display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
     }
-    .module-card {
-      display: none;
-      margin-bottom: 0;
-    }
-    .module-card.active {
-      display: flex;
-    }
-    .module-card.force-show {
-      display: flex !important;
-      margin-bottom: 8px;
-    }
-    .global-toolbar input.new-account { flex-basis: 100%; }
-    .global-toolbar .count { margin-left: 0; width: 100%; text-align: right; }
-    .backup-toolbar .hint { margin-left: 0; width: 100%; text-align: right; }
-  }
+    .container { width: 100%; max-width: 1600px; }
+    h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
+    .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
-  #importJsonInput { display: none; }
+    .tab-bar { display: flex; justify-content: center; gap: 10px; margin-bottom: 14px; }
+    .tab-btn {
+        border: 1px solid rgba(234,54,144,0.35); background: white; color: #ea3690;
+        font-size: 15px; font-weight: bold; padding: 8px 26px; border-radius: 20px;
+        cursor: pointer; transition: all 0.2s ease; outline: none;
+        font-family: inherit;
+    }
+    .tab-btn.active {
+        background: #ea3690; color: white; border-color: #ea3690;
+        box-shadow: 0 3px 10px rgba(234,54,144,0.25);
+    }
+    .tab-panel { display: none; width: 100%; }
+    .tab-panel.active { display: block; }
 
-  /* ===== 统一弹窗 ===== */
-  .modal-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 99999;
-    padding: 16px;
-    animation: fadeIn 0.15s ease;
-  }
-  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  .modal-box {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(234,54,144,0.2);
-    border: 1px solid rgba(234,54,144,0.15);
-    max-width: 380px;
-    width: 100%;
-    overflow: hidden;
-    animation: popIn 0.18s ease;
-  }
-  @keyframes popIn {
-    from { transform: scale(0.95); opacity: 0; }
-    to { transform: scale(1); opacity: 1; }
-  }
-  .modal-title {
-    background: transparent;
-    color: #ea3690;
-    font-size: 15px;
-    font-weight: bold;
-    padding: 16px 16px 0 16px;
-    text-align: center;
-  }
-  .modal-body {
-    padding: 12px 16px 16px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .modal-message {
-    font-size: 12px;
-    color: #666;
-    line-height: 1.6;
-    text-align: center;
-  }
-  .modal-message b {
-  color: #ea3690;
-  font-weight: bold;
-}
-  .modal-message .hint { font-size: 11px; color: #999; }
-  .modal-field {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .modal-field label {
-    font-size: 11px;
-    color: #999;
-    font-weight: bold;
-    padding-left: 4px;
-  }
-  .modal-input {
-    width: 100%;
-    height: 38px;
-    padding: 0 12px;
-    border: 1px solid #f0d6e4;
-    border-radius: 8px;
-    background: #FFFFFF;
-    color: #333;
-    font-size: 15px;
-    font-family: inherit;
-    outline: none;
-    transition: 0.15s;
-  }
-  .modal-input:focus {
-    border-color: #ea3690;
-    background: #fff;
-    box-shadow: 0 0 0 2px rgba(234,54,144,0.12);
-  }
-  .modal-input::placeholder {
-    color: #ccc;
-    font-weight: normal;
-  }
-  .modal-actions { display: flex; gap: 8px; }
-  .modal-actions button {
-    flex: 1;
-    height: 38px;
-    border-radius: 19px;
-    font-size: 13px;
-    font-weight: bold;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s ease;
-    outline: none;
-  }
-  .modal-btn-cancel {
-    border: 1px solid rgba(234,54,144,0.35);
-    background: #fff;
-    color: #ea3690;
-  }
-  .modal-btn-cancel:hover { background: rgba(234,54,144,0.06); }
-  .modal-btn-ok {
-    border: 1px solid #ea3690;
-    background: #ea3690;
-    color: #fff;
-    box-shadow: 0 3px 10px rgba(234,54,144,0.25);
-  }
-  .modal-btn-ok:hover { background: #d42f80; border-color: #d42f80; }
-  .modal-btn-secondary {
-    border: 1px solid rgba(234,54,144,0.35);
-    background: #fff;
-    color: #ea3690;
-  }
-  .modal-btn-secondary:hover { background: rgba(234,54,144,0.06); }
+    .charts-row { display: flex; flex-wrap: wrap; gap: 12px; width: 100%; margin-bottom: 12px; }
+    .chart-col-1 { flex: 1 1 100%; min-width: 0; }
+    .chart-col-3 { flex: 1 1 320px; min-width: 0; }
+
+    .score-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: flex-start;
+    }
+    .score-table-col {
+        flex: 2 1 0;
+        min-width: 280px;
+        max-width: 100%;
+        display: flex; flex-direction: column;
+    }
+    .score-chart-col {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .card {
+        background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(234,54,144,0.08);
+        padding: 12px 0; overflow: hidden; border: 1px solid rgba(234,54,144,0.10);
+    }
+    .title { text-align: center; color: #ea3690; font-size: 15px; font-weight: bold; margin: 5px 0 8px 0; }
+    .chart-legend-text {
+        text-align: center; font-size: 12px; color: #666; margin: 0 8px 6px 8px; line-height: 1.8;
+    }
+    .chart-legend-text .item { display: inline-block; margin: 0 5px; }
+    .chart-legend-text .dot {
+        display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+        margin-right: 4px; vertical-align: middle;
+    }
+    .chart-wrapper { width: 100%; height: 300px; }
+
+    .score-table-col .card {
+        height: 520px;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+    .score-chart-col .card {
+        height: 520px;
+        display: flex; flex-direction: column;
+    }
+    .chart-wrapper-flex {
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    .table-scroll-box {
+        width: 100%;
+        overflow-x: auto; overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto; min-height: 0;
+        display: flex; flex-direction: column;
+    }
+    .table-scroll-box::-webkit-scrollbar { display: none; }
+
+    .recent-table {
+        width: 100%;
+        height: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 12px;
+        table-layout: fixed;
+        min-width: 720px;
+    }
+    .recent-table th, .recent-table td {
+        padding: 8px 5px; text-align: center; border-bottom: 1px solid #f3e6ee; white-space: nowrap;
+        min-height: 36px; line-height: 1.5;
+    }
+    .recent-table th {
+        background-color: #ea3690 !important;
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 11px;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 1px 0 #f3e6ee;
+    }
+    .recent-table thead tr:first-child th:first-child {
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 20 !important;
+        background-color: #ea3690 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .recent-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        color: #555;
+        background-color: #ffffff;
+    }
+    .recent-table tbody tr:nth-child(even) td:first-child {
+        background-color: #fdf7fa;
+    }
+    .recent-table tbody tr:nth-child(even) {
+        background-color: #ea36900a;
+    }
+    .recent-table .song-cell {
+        max-width: 130px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+        color: #555;
+    }
+    .val-score { font-weight: bold; color: #333; }
+    .up { color: #e74c3c; font-weight: bold; }
+    .flat, .down { color: #999; font-weight: bold; }
+
+    #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
+
+    .range-tabs {
+        display: flex; justify-content: center; gap: 8px; margin: 2px 0 6px 0;
+    }
+    .range-btn {
+        border: 1px solid rgba(234,54,144,0.35);
+        background: white; color: #ea3690;
+        font-size: 12px; padding: 3px 12px; border-radius: 12px;
+        cursor: pointer; outline: none; font-family: inherit;
+    }
+    .range-btn.active {
+        background: #ea3690; color: #fff; border-color: #ea3690;
+    }
+
+    .range-hint {
+        text-align: center;
+        font-size: 11px;
+        color: #bbb;
+        margin: 0 8px 4px 8px;
+    }
+
+    @media (max-width: 900px) {
+        .score-row { flex-direction: column; align-items: stretch; }
+        .score-table-col, .score-chart-col {
+            flex: 1 1 100%; width: 100%; min-width: 0; max-width: 100%;
+        }
+        .score-table-col .card, .score-chart-col .card {
+            height: auto; min-height: 0;
+        }
+        .score-table-col .card { max-height: 420px; overflow: hidden; }
+        .chart-wrapper-flex { height: 280px; flex: none; }
+
+        .table-scroll-box { overflow-x: auto; overflow-y: auto; }
+        .recent-table { min-width: 720px; font-size: 11px; }
+        .recent-table th, .recent-table td { padding: 6px 4px; }
+        .recent-table .song-cell { max-width: 150px; }
+    }
 </style>
 </head>
 <body>
+<div class="container">
+    <h1>腾讯音乐由你榜 · TOP3</h1>
+    <div class="update-time" id="updateTime"></div>
+    <div id="loading">正在加载数据...</div>
 
-  <!-- 顶部：标题 + 登录按钮 -->
-  <div class="header-area">
-    <h1 id="exportTitle">打榜数据录入</h1>
-    <div class="subtitle" id="exportSubtitle">账号统一管理 · 多模块独立数据</div>
-  </div>
-
-  <div class="auth-row" id="authBar">
-    <button id="authOpenBtn" class="auth-text-btn">登录 / 注册</button>
-    <span class="auth-user" id="authUser" style="display:none;"></span>
-    <button id="authLogoutBtn" class="auth-text-btn danger" style="display:none;">退出登录</button>
-  </div>
-
-  <div class="global-toolbar">
-    <span class="label">打榜账号</span>
-    <input class="new-account" type="text" id="globalNewAccount"
-           placeholder="输入账号名，逗号或空格分隔可一次新增多个，按回车确认">
-    <button id="globalAddBtn">新增</button>
-    <button id="globalClearAccountsBtn" class="danger">清空账号</button>
-    <button id="exportPngBtn">导出 PNG</button>
-    <span class="count">当前账号：<b id="globalAccountCount">0</b> 个</span>
-  </div>
-
-  <div class="backup-toolbar">
-    <span class="label">数据备份</span>
-    <button id="exportAllBtn">导出数据</button>
-    <button id="importAllBtn">导入数据</button>
-    <input type="file" id="importJsonInput" accept=".json,application/json">
-    <button id="cloudSaveBtn" disabled>云端保存</button>
-    <button id="cloudLoadBtn" disabled>云端读取</button>
-    <span class="hint" id="cloudStatus">请先登录</span>
-  </div>
-
-  <div class="module-tabs" id="moduleTabs">
-    <button class="module-tab-btn active" data-module="power">电力</button>
-    <button class="module-tab-btn" data-module="youni">由你积分</button>
-    <button class="module-tab-btn" data-module="coin">金币</button>
-    <button class="module-tab-btn" data-module="play">刷播</button>
-  </div>
-
-  <div class="module-grid" id="moduleGrid">
-    <div class="module-card active" data-module="power">
-      <div class="module-title">电力（盲盒CD：4h）</div>
-      <iframe src="power.html" title="电力"></iframe>
-    </div>
-    <div class="module-card" data-module="youni">
-      <div class="module-title">由你积分（>112）</div>
-      <iframe src="youni.html" title="由你积分"></iframe>
-    </div>
-    <div class="module-card" data-module="coin">
-      <div class="module-title">金币（>48w）</div>
-      <iframe src="coin.html" title="金币"></iframe>
-    </div>
-    <div class="module-card" data-module="play">
-      <div class="module-title">刷播</div>
-      <iframe src="play.html" title="刷播"></iframe>
-    </div>
-  </div>
-
-  <script>
-    // ===== Supabase 配置 =====
-    const SUPABASE_URL = 'https://vymukyyihiykkdmmqvyi.supabase.co';
-    const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_KpaSfKbb-HTb3z8ouXt8AA_9oeeRmps';
-    let supabaseClient = null;
-    let currentUser = null;
-    let cloudReady = false;
-
-    function setCloudStatus(text, ok) {
-      const el = document.getElementById('cloudStatus');
-      if (!el) return;
-      el.textContent = text;
-      el.style.color = ok ? '#22c55e' : '#999';
-    }
-
-    function updateAuthUI() {
-      const openBtn = document.getElementById('authOpenBtn');
-      const logoutBtn = document.getElementById('authLogoutBtn');
-      const userSpan = document.getElementById('authUser');
-      const saveBtn = document.getElementById('cloudSaveBtn');
-      const loadBtn = document.getElementById('cloudLoadBtn');
-
-      if (currentUser) {
-        openBtn.style.display = 'none';
-        logoutBtn.style.display = '';
-        userSpan.style.display = '';
-        userSpan.innerHTML = `已登录：<b>${escapeHtml(currentUser.email || '')}</b>`;
-        saveBtn.disabled = false;
-        loadBtn.disabled = false;
-      } else {
-        openBtn.style.display = '';
-        logoutBtn.style.display = 'none';
-        userSpan.style.display = 'none';
-        userSpan.innerHTML = '';
-        saveBtn.disabled = true;
-        loadBtn.disabled = true;
-        setCloudStatus('请先登录', false);
-      }
-    }
-
-    async function initSupabase() {
-      try {
-        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
-        supabaseClient.auth.onAuthStateChange((event, session) => {
-          if (session && session.user) {
-            currentUser = session.user;
-            cloudReady = true;
-            updateAuthUI();
-            pullFromCloud(true);
-          } else {
-            currentUser = null;
-            cloudReady = false;
-            updateAuthUI();
-          }
-        });
-
-        const { data, error } = await supabaseClient.auth.getSession();
-        if (error) throw error;
-        if (data.session && data.session.user) {
-          currentUser = data.session.user;
-          cloudReady = true;
-          updateAuthUI();
-          await pullFromCloud(true);
-        } else {
-          updateAuthUI();
-        }
-      } catch (err) {
-        console.error('Supabase init failed', err);
-        setCloudStatus('云端连接失败：' + (err.message || err), false);
-      }
-    }
-
-    // ===== 登录/注册弹窗 =====
-    function showAuthModal() {
-      const overlay = document.createElement('div');
-      overlay.className = 'modal-overlay';
-      overlay.id = 'authModalOverlay';
-      overlay.innerHTML = `
-        <div class="modal-box">
-          <div class="modal-title">登录 / 注册</div>
-          <div class="modal-body">
-            <div class="modal-message">
-              邮箱需符合格式, 如 <b>mzc051@mzc051.com</b>。<br>
-              请记住，换设备找回数据时需要用同一个邮箱登录
-            </div>
-            <div class="modal-field">
-              <label>邮箱</label>
-              <input class="modal-input" type="email" id="modalAuthEmail" placeholder="例如 xiaoming@example.com" autocomplete="username">
-            </div>
-            <div class="modal-field">
-              <label>密码（至少 6 位）</label>
-              <input class="modal-input" type="password" id="modalAuthPassword" placeholder="请输入密码" autocomplete="current-password">
-            </div>
-            <div class="modal-actions">
-              <button class="modal-btn-secondary" id="modalAuthRegister">注册</button>
-              <button class="modal-btn-ok" id="modalAuthLogin">登录</button>
-            </div>
-          </div>
+    <div id="content" style="display:none;">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="weekly">周榜</button>
+            <button class="tab-btn" data-tab="daily">日榜</button>
         </div>
-      `;
-      document.body.appendChild(overlay);
 
-      const emailInput = overlay.querySelector('#modalAuthEmail');
-      const pwdInput = overlay.querySelector('#modalAuthPassword');
-      const loginBtn = overlay.querySelector('#modalAuthLogin');
-      const regBtn = overlay.querySelector('#modalAuthRegister');
+        <!-- ================= 周榜 ================= -->
+        <div class="tab-panel active" id="panel-weekly">
+            <div class="range-hint" style="margin-bottom:8px;">
+                周榜最近十天：每天取该有效日最新一条；00:00–00:10 的数据计入前一天；当日按最新显示。
+            </div>
+            <div class="score-row">
+                <div class="score-table-col">
+                    <div class="card">
+                        <div class="title">周榜 · 最近10条</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-chart-col">
+                    <div class="card">
+                        <div class="title">周榜 · 总分</div>
+                        <div class="range-tabs" data-chart="weeklyScore">
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="10d">最近十天</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyLegend"></div>
+                        <div class="chart-wrapper-flex" id="chartWeekly"></div>
+                    </div>
+                </div>
+            </div>
 
-      setTimeout(() => emailInput.focus(), 50);
+            <!-- TOP1/2/3 -->
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · TOP1</div>
+                        <div class="range-tabs" data-chart="weeklyRank1">
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="10d">最近十天</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyRank1Legend"></div>
+                        <div class="chart-wrapper" id="chartWeeklyRank1"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · TOP2</div>
+                        <div class="range-tabs" data-chart="weeklyRank2">
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="10d">最近十天</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyRank2Legend"></div>
+                        <div class="chart-wrapper" id="chartWeeklyRank2"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">周榜 · TOP3</div>
+                        <div class="range-tabs" data-chart="weeklyRank3">
+                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn" data-range="10d">最近十天</button>
+                        </div>
+                        <div class="chart-legend-text" id="weeklyRank3Legend"></div>
+                        <div class="chart-wrapper" id="chartWeeklyRank3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-      function close() {
-        overlay.remove();
-        document.removeEventListener('keydown', onKey);
-      }
-      function onKey(e) {
-        if (e.key === 'Escape') { e.preventDefault(); close(); }
-        else if (e.key === 'Enter') { e.preventDefault(); doLogin(); }
-      }
-      document.addEventListener('keydown', onKey);
-      overlay.addEventListener('click', function(e){
-        if (e.target === overlay) close();
-      });
+        <!-- ================= 日榜 ================= -->
+        <div class="tab-panel" id="panel-daily">
+            <div class="score-row">
+                <div class="score-table-col">
+                    <div class="card">
+                        <div class="title">日榜 · 最近10条</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="score-chart-col">
+                    <div class="card">
+                        <div class="title">日榜 · 总分</div>
+                        <div class="range-tabs" data-chart="dailyScore">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today" id="dailyDateBtn">--</button>
+                        </div>
+                        <div class="range-hint">00:00–06:00 数据不更新</div>
+                        <div class="chart-legend-text" id="dailyLegend"></div>
+                        <div class="chart-wrapper-flex" id="chartDaily"></div>
+                    </div>
+                </div>
+            </div>
 
-      async function doLogin() {
-        const email = emailInput.value.trim();
-        const password = pwdInput.value;
-        if (!email || !password) {
-          showAlert('提示', '请填写邮箱和密码');
-          return;
-        }
-        try {
-          const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-          if (error) throw error;
-          close();
-          showAlert('登录成功', '已登录，正在同步云端数据...');
-        } catch (err) {
-          const msg = err.message || String(err);
-          if (msg.includes('Invalid login credentials')) {
-            showAlert('登录失败', '邮箱或密码错误，请检查后重试。');
-          } else {
-            showAlert('登录失败', escapeHtml(msg));
-          }
-        }
-      }
+            <!-- TOP1/2/3 -->
+            <div class="charts-row">
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · TOP1</div>
+                        <div class="range-tabs" data-chart="dailyRank1">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today">--</button>
+                        </div>
+                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
+                        <div class="chart-legend-text" id="dailyRank1Legend"></div>
+                        <div class="chart-wrapper" id="chartDailyRank1"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · TOP2</div>
+                        <div class="range-tabs" data-chart="dailyRank2">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today">--</button>
+                        </div>
+                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
+                        <div class="chart-legend-text" id="dailyRank2Legend"></div>
+                        <div class="chart-wrapper" id="chartDailyRank2"></div>
+                    </div>
+                </div>
+                <div class="chart-col-3">
+                    <div class="card">
+                        <div class="title">日榜 · TOP3</div>
+                        <div class="range-tabs" data-chart="dailyRank3">
+                            <button class="range-btn active" data-range="3">最近3小时</button>
+                            <button class="range-btn" data-range="today">--</button>
+                        </div>
+                        <div class="range-hint">00:00–06:00 总分数据不更新</div>
+                        <div class="chart-legend-text" id="dailyRank3Legend"></div>
+                        <div class="chart-wrapper" id="chartDailyRank3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
-      async function doRegister() {
-        const email = emailInput.value.trim();
-        const password = pwdInput.value;
-        if (!email || !password) {
-          showAlert('提示', '请填写邮箱和密码');
-          return;
-        }
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-          showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
-          return;
-        }
-        if (password.length < 6) {
-          showAlert('提示', '密码至少 6 位');
-          return;
-        }
-        try {
-          const { data, error } = await supabaseClient.auth.signUp({ email, password });
-          if (error) throw error;
-          close();
-          if (data.session) {
-            showAlert('注册成功', '已自动登录，正在同步云端数据...');
-          } else {
-            showAlert('注册成功', '请使用刚才的邮箱和密码登录。');
-          }
-        } catch (err) {
-          const msg = err.message || String(err);
-          if (msg.includes('already registered') || msg.includes('User already registered')) {
-            showAlert('注册失败', '该邮箱已经注册过了，请直接登录。');
-          } else if (msg.includes('invalid format') || msg.includes('validate email')) {
-            showAlert('提示', '邮箱格式不对，例如 xiaoming@example.com');
-          } else if (msg.includes('Password should be')) {
-            showAlert('提示', '密码太简单或太短，请至少 6 位。');
-          } else {
-            showAlert('注册失败', escapeHtml(msg));
-          }
-        }
-      }
+<script>
+const lineColors = ['#ea3690', '#7c3aed', '#f97316', '#00e268', '#f5cc0b', '#10b981', '#c4b5fd', '#ef4444', '#14b8a6', '#64748b'];
 
-      loginBtn.addEventListener('click', doLogin);
-      regBtn.addEventListener('click', doRegister);
+const rankFields = [
+    { key: '得分',     color: '#ea3690' },
+    { key: '播放热度', color: '#7c3aed' },
+    { key: '畅销度',   color: '#f97316' },
+    { key: '推荐度',   color: '#00e268' },
+];
+
+const chartDaily = echarts.init(document.getElementById('chartDaily'));
+const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
+
+const chartWeeklyRank1 = echarts.init(document.getElementById('chartWeeklyRank1'));
+const chartWeeklyRank2 = echarts.init(document.getElementById('chartWeeklyRank2'));
+const chartWeeklyRank3 = echarts.init(document.getElementById('chartWeeklyRank3'));
+const chartDailyRank1 = echarts.init(document.getElementById('chartDailyRank1'));
+const chartDailyRank2 = echarts.init(document.getElementById('chartDailyRank2'));
+const chartDailyRank3 = echarts.init(document.getElementById('chartDailyRank3'));
+
+const allCharts = [chartDaily, chartWeekly,
+                   chartWeeklyRank1, chartWeeklyRank2, chartWeeklyRank3,
+                   chartDailyRank1, chartDailyRank2, chartDailyRank3];
+allCharts.forEach(c => c.showLoading());
+
+function colorClass(v) {
+    if (v === undefined || v === null || v === '') return '';
+    const fv = parseFloat(v);
+    if (isNaN(fv)) return '';
+    return fv > 0 ? 'up' : 'flat';
+}
+
+function stripYear(timeStr) {
+    if (!timeStr) return '';
+    return timeStr.replace(/^\d{4}[-/]/, '');
+}
+
+function parseTime(s) {
+    const m = (s || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (!m) return null;
+    return new Date(
+        parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]),
+        m[4] ? parseInt(m[4]) : 0,
+        m[5] ? parseInt(m[5]) : 0,
+        m[6] ? parseInt(m[6]) : 0
+    );
+}
+
+function getTodayDateForDaily() {
+    const now = new Date();
+    const effective = new Date(now);
+    if (now.getHours() === 0 && now.getMinutes() < 10) {
+        effective.setDate(effective.getDate() - 1);
     }
+    return effective;
+}
 
-    async function logout() {
-      showConfirm('退出登录', '确定退出当前账号吗？<br>本地数据不会删除。', async function(ok) {
-        if (!ok) return;
-        await supabaseClient.auth.signOut();
-        currentUser = null;
-        cloudReady = false;
-        updateAuthUI();
-      });
-    }
+function fmtDateLabel(d) {
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+}
 
-    // ===== 云端同步 =====
-    function collectLocalData() {
-      const payload = {};
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && key.startsWith('bang_')) {
-          payload[key] = localStorage.getItem(key);
-        }
-      }
-      return payload;
-    }
+function fmtDateKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
-    async function saveToCloud() {
-      if (!cloudReady || !supabaseClient || !currentUser) {
-        showAlert('未登录', '请先登录账号。');
+function refreshDailyDateButtons() {
+    const label = fmtDateLabel(getTodayDateForDaily());
+    document.querySelectorAll('.range-tabs[data-chart^="daily"] .range-btn[data-range="today"]').forEach(btn => {
+        btn.textContent = label;
+    });
+}
+
+function renderRecentTable(rows, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
         return;
-      }
-      const payload = collectLocalData();
-      if (Object.keys(payload).length === 0) {
-        showAlert('提示', '当前没有任何可保存的数据');
-        return;
-      }
-      try {
-        setCloudStatus('保存中...', true);
-        const { data: existing, error: qErr } = await supabaseClient
-          .from('bang_data')
-          .select('id')
-          .eq('user_id', currentUser.id)
-          .limit(1);
-        if (qErr) throw qErr;
-
-        if (existing && existing.length > 0) {
-          const { error } = await supabaseClient
-            .from('bang_data')
-            .update({ data: payload, updated_at: new Date().toISOString() })
-            .eq('id', existing[0].id);
-          if (error) throw error;
-        } else {
-          const { error } = await supabaseClient
-            .from('bang_data')
-            .insert({ user_id: currentUser.id, data: payload });
-          if (error) throw error;
-        }
-        setCloudStatus('已保存到云端', true);
-        showAlert('保存成功', '当前数据已保存到云端。');
-      } catch (err) {
-        console.error(err);
-        setCloudStatus('保存失败', false);
-        showAlert('保存失败', escapeHtml(err.message || String(err)));
-      }
     }
-
-    async function loadFromCloud(silent) {
-      if (!cloudReady || !supabaseClient || !currentUser) {
-        if (!silent) showAlert('未登录', '请先登录账号。');
-        return;
-      }
-      try {
-        setCloudStatus('读取中...', true);
-        const { data, error } = await supabaseClient
-          .from('bang_data')
-          .select('data')
-          .eq('user_id', currentUser.id)
-          .limit(1);
-        if (error) throw error;
-
-        if (!data || data.length === 0) {
-          setCloudStatus('云端暂无数据', true);
-          if (!silent) showAlert('提示', '云端还没有保存过数据。');
-          return;
+    const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
+    const recent = sorted.slice(0, 10);
+    tbody.innerHTML = recent.map(r => {
+        const displayTime = stripYear(r['时间'] || '');
+        const cells = [`<td>${displayTime}</td>`];
+        for (let i = 1; i <= 3; i++) {
+            const name = r[`第${i}名歌名`] || '';
+            const singer = r[`第${i}名歌手`] || '';
+            const song = singer ? `${name}-${singer}` : name;
+            const score = r[`第${i}名得分`] || '';
+            const change = r[`第${i}名官方增幅`] || '';
+            const changeText = change === '' ? '' : '+' + change;
+            const cls = colorClass(change);
+            cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
+            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
         }
+        return `<tr>${cells.join('')}</tr>`;
+    }).join('');
+}
 
-        const cloudData = data[0].data || {};
-        const keys = Object.keys(cloudData);
-        if (keys.length === 0) {
-          setCloudStatus('云端数据为空', true);
-          if (!silent) showAlert('提示', '云端数据为空。');
-          return;
+function buildAxis(rows, range) {
+    const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    const now = new Date();
+    let rowsByColumn = [];
+    let times = [];
+
+    if (range === '3') {
+        const cutoff = now.getTime() - 3 * 60 * 60 * 1000;
+        const inRange = allSorted.filter(r => {
+            const t = parseTime(r['时间']);
+            return t && t.getTime() >= cutoff;
+        });
+        rowsByColumn = inRange;
+        times = inRange.map(r => {
+            const t = r['时间'] || '';
+            const p = t.split(' ');
+            return p.length > 1 ? p[1] : t;
+        });
+    } else if (range === '24') {
+        const byMin06 = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t || t.getMinutes() !== 6) return;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:06`;
+            byMin06[key] = r;
+        });
+        for (let i = 23; i >= 0; i--) {
+            const d = new Date(now.getTime() - i * 60 * 60 * 1000);
+            const key = `${fmtDateKey(d)} ${String(d.getHours()).padStart(2, '0')}:06`;
+            rowsByColumn.push(byMin06[key] || null);
+            times.push(`${String(d.getHours()).padStart(2, '0')}:06`);
         }
+    } else if (range === '10d') {
+        const effectiveToday = getTodayDateForDaily();
 
-        keys.forEach(k => {
-          if (k.startsWith('bang_')) {
-            localStorage.setItem(k, cloudData[k]);
-          }
+        // 按“有效日”归组：00:10 前算前一天
+        const dayMap = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const eff = new Date(t);
+            if (t.getHours() === 0 && t.getMinutes() < 10) {
+                eff.setDate(eff.getDate() - 1);
+            }
+            const dayKey = fmtDateKey(eff);
+            dayMap[dayKey] = r;   // 同一天多条时，后覆盖前（即该有效日最晚一条）
         });
 
-        setCloudStatus('已从云端读取', true);
-        if (!silent) {
-          showAlert('读取成功', '云端数据已写入本地，页面将刷新。', function() {
-            location.reload();
-          });
-        } else {
-          reloadIframes();
+        for (let i = 9; i >= 0; i--) {
+            const d = new Date(effectiveToday);
+            d.setDate(d.getDate() - i);
+            const key = fmtDateKey(d);
+            rowsByColumn.push(dayMap[key] || null);
+            times.push(`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
         }
-      } catch (err) {
-        console.error(err);
-        setCloudStatus('读取失败', false);
-        if (!silent) showAlert('读取失败', escapeHtml(err.message || String(err)));
-      }
+    } else {
+        const baseDay = getTodayDateForDaily();
+        const nextDay = new Date(baseDay);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const rowByKey = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            rowByKey[key] = r;
+        });
+        for (let h = 6; h <= 23; h++) {
+            const key = `${fmtDateKey(baseDay)} ${String(h).padStart(2, '0')}:06`;
+            rowsByColumn.push(rowByKey[key] || null);
+            times.push(`${String(h).padStart(2, '0')}:06`);
+        }
+        const key24 = `${fmtDateKey(nextDay)} 00:16`;
+        rowsByColumn.push(rowByKey[key24] || null);
+        times.push('24:00');
     }
 
-    function reloadIframes() {
-      document.querySelectorAll('.module-card iframe').forEach(iframe => {
-        try { iframe.contentWindow.location.reload(); } catch(e) {}
-      });
-    }
+    return { rowsByColumn, times };
+}
 
-    function pullFromCloud(silent) {
-      return new Promise(resolve => {
-        (async () => {
-          try {
-            if (!cloudReady || !supabaseClient || !currentUser) { resolve(); return; }
-            const { data, error } = await supabaseClient
-              .from('bang_data')
-              .select('data')
-              .eq('user_id', currentUser.id)
-              .limit(1);
-            if (error) throw error;
-            if (data && data.length > 0 && data[0].data) {
-              const cloudData = data[0].data;
-              Object.keys(cloudData).forEach(k => {
-                if (k.startsWith('bang_')) localStorage.setItem(k, cloudData[k]);
-              });
-              setCloudStatus('已从云端同步', true);
-              reloadIframes();
-            } else {
-              setCloudStatus('云端已登录（暂无数据）', true);
+function calcScoreYRange(rows, mode) {
+    const otherRange = (mode === 'weekly') ? '10d' : 'today';
+    const ranges = ['24', otherRange];
+    let min = Infinity, max = -Infinity;
+    ranges.forEach(range => {
+        const { rowsByColumn } = buildAxis(rows, range);
+        rowsByColumn.forEach(r => {
+            if (!r) return;
+            for (let rank = 1; rank <= 3; rank++) {
+                const s = r[`第${rank}名得分`] || '';
+                const v = parseFloat(s);
+                if (!isNaN(v)) {
+                    if (v < min) min = v;
+                    if (v > max) max = v;
+                }
             }
-          } catch (err) {
-            console.error(err);
-            setCloudStatus('云端同步失败', false);
-          } finally {
-            resolve();
-          }
-        })();
-      });
+        });
+    });
+    if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: undefined };
+    const pad = Math.max((max - min) * 0.08, 1);
+    min = Math.floor((min - pad) / 5) * 5;
+    max = Math.ceil((max + pad) / 5) * 5;
+    if (max <= min) max = min + 5;
+    return { min, max };
+}
+
+function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, autoY) {
+    range = range || '24';
+    const legendEl = document.getElementById(legendId);
+    const { rowsByColumn, times } = buildAxis(rows, range);
+
+    let latest = null;
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        if (rowsByColumn[i]) { latest = rowsByColumn[i]; break; }
     }
 
-    // ===== 原有逻辑 =====
-    const ACCOUNTS_STORAGE_KEY = 'bang_global_accounts';
-    const STORAGE_PREFIX = 'bang_';
+    if (!latest) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
 
-    function loadGlobalAccounts() {
-      try {
-        const raw = localStorage.getItem(ACCOUNTS_STORAGE_KEY);
-        if (raw) {
-          const arr = JSON.parse(raw);
-          if (Array.isArray(arr)) {
-            return arr.filter(x => typeof x === 'string' && x.trim() !== '')
-                      .map(x => x.trim().replace(/\s+/g, ' '));
-          }
+    const songKey = (r, rank) => {
+        const name = r[`第${rank}名歌名`] || '';
+        const singer = r[`第${rank}名歌手`] || '';
+        if (!name) return '';
+        return singer ? `${singer}-${name}` : name;
+    };
+
+    const songOrder = [];
+    const songSet = new Set();
+    for (let rank = 1; rank <= 3; rank++) {
+        const key = songKey(latest, rank);
+        if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
+    }
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        const r = rowsByColumn[i];
+        if (!r) continue;
+        for (let rank = 1; rank <= 3; rank++) {
+            const key = songKey(r, rank);
+            if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
         }
-      } catch(e) {}
-      return [];
-    }
-    function saveGlobalAccounts(arr) {
-      localStorage.setItem(ACCOUNTS_STORAGE_KEY, JSON.stringify(arr));
-    }
-    let globalAccounts = loadGlobalAccounts();
-
-    function parseNames(input) {
-      if (!input || typeof input !== 'string') return [];
-      const parts = input.split(/[,，\s]+/);
-      const seen = new Set();
-      const result = [];
-      parts.forEach(p => {
-        const name = p.trim().replace(/\s+/g, ' ');
-        if (name && !seen.has(name)) { seen.add(name); result.push(name); }
-      });
-      return result;
     }
 
-    function broadcastAccountsChanged() {
-      document.querySelectorAll('.module-card iframe').forEach(iframe => {
-        try {
-          iframe.contentWindow.postMessage({
-            type: 'accounts-changed',
-            accounts: globalAccounts
-          }, '*');
-        } catch(e) {}
-      });
+    const songColorMap = {};
+    songOrder.forEach((key, idx) => {
+        songColorMap[key] = lineColors[idx % lineColors.length];
+    });
+
+    function songSeriesData(key) {
+        return rowsByColumn.map(r => {
+            if (!r) return null;
+            for (let rank = 1; rank <= 3; rank++) {
+                if (songKey(r, rank) === key) {
+                    const s = r[`第${rank}名${field}`] || '';
+                    return s === '' ? null : parseFloat(s);
+                }
+            }
+            return null;
+        });
     }
 
-    function updateGlobalCount() {
-      const el = document.getElementById('globalAccountCount');
-      if (el) el.textContent = globalAccounts.length;
+    const series = songOrder.map(key => ({
+        name: key,
+        type: 'line',
+        data: songSeriesData(key),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 3,
+        connectNulls: false,
+        itemStyle: { color: songColorMap[key] },
+        lineStyle: { width: 2, color: songColorMap[key] },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        legendEl.innerHTML = songOrder.map(key =>
+            `<span class="item"><span class="dot" style="background:${songColorMap[key]}"></span>${key}</span>`
+        ).join('');
     }
 
-    function addGlobalAccounts(inputEl) {
-      const names = parseNames(inputEl.value);
-      if (names.length === 0) { inputEl.value = ''; return; }
-      const existing = new Set(globalAccounts);
-      const added = [], skipped = [];
-      names.forEach(name => {
-        if (existing.has(name)) skipped.push(name);
-        else { existing.add(name); globalAccounts.push(name); added.push(name); }
-      });
-      if (added.length) {
-        saveGlobalAccounts(globalAccounts);
-        updateGlobalCount();
-        broadcastAccountsChanged();
-      }
-      inputEl.value = '';
-      if (skipped.length) {
-        showAlert('账号已存在', `以下账号已存在，已跳过：<br>${skipped.map(escapeHtml).join('、')}`);
-      }
+    let yAxisOpt;
+    if (autoY) {
+        const { min, max } = calcScoreYRange(rows, mode);
+        yAxisOpt = {
+            type: 'value',
+            min: min,
+            max: max,
+            minInterval: 1,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        };
+    } else {
+        yAxisOpt = {
+            type: 'value',
+            min: 0,
+            max: 100,
+            interval: 20,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        };
     }
 
-    function clearGlobalAccounts() {
-      if (globalAccounts.length === 0) { showAlert('提示', '当前已经没有账号了'); return; }
-      showConfirm('清空账号', '确定要清空所有打榜账号吗？<br>各模块中对应的账号数据也会被移除，此操作不可撤销。', function(ok) {
-        if (!ok) return;
-        globalAccounts = [];
-        saveGlobalAccounts(globalAccounts);
-        updateGlobalCount();
-        broadcastAccountsChanged();
-      });
+    chartInst.hideLoading();
+    chartInst.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                const label = range === '3'
+                    ? (r && r['时间']) || times[i]
+                    : times[i] + (r ? '' : '（无数据）');
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+
+                        let deltaRaw = '';
+                        for (let rank = 1; rank <= 3; rank++) {
+                            if (songKey(r, rank) === p.seriesName) {
+                                deltaRaw = r[`第${rank}名官方增幅`] || '';
+                                break;
+                            }
+                        }
+
+                        let text = '';
+                        let color = '#999';
+                        if (deltaRaw !== '') {
+                            const fv = parseFloat(deltaRaw);
+                            text = (fv > 0 ? '+' : '') + deltaRaw;
+                            color = fv > 0 ? '#ea3690' : '#999';
+                        }
+
+                        html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
+                              + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;">${p.value}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
+                              + `</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: {
+                interval: range === '3' ? 'auto' : 1,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+            },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: yAxisOpt,
+        series: series,
+    }, true);
+    chartInst.resize();
+}
+
+function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
+    range = range || '24';
+    const legendEl = document.getElementById(legendId);
+    const { rowsByColumn, times } = buildAxis(rows, range);
+
+    let latestRow = null;
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        if (rowsByColumn[i]) { latestRow = rowsByColumn[i]; break; }
     }
 
-    function initGlobalToolbar() {
-      updateGlobalCount();
-      const input = document.getElementById('globalNewAccount');
-      const addBtn = document.getElementById('globalAddBtn');
-      const clearBtn = document.getElementById('globalClearAccountsBtn');
-      addBtn.addEventListener('click', () => addGlobalAccounts(input));
-      input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') { e.preventDefault(); addGlobalAccounts(this); }
-      });
-      input.addEventListener('blur', function() {
-        const el = this;
-        setTimeout(() => { if (el.value.trim()) addGlobalAccounts(el); }, 100);
-      });
-      clearBtn.addEventListener('click', clearGlobalAccounts);
-      document.getElementById('exportPngBtn').addEventListener('click', exportPageAsPng);
+    if (!latestRow) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
     }
 
-    function initAuthBar() {
-      document.getElementById('authOpenBtn').addEventListener('click', showAuthModal);
-      document.getElementById('authLogoutBtn').addEventListener('click', logout);
+    const series = rankFields.map(f => ({
+        name: f.key,
+        type: 'line',
+        data: rowsByColumn.map(r => {
+            if (!r) return null;
+            const s = r[`第${rank}名${f.key}`] || '';
+            return s === '' ? null : parseFloat(s);
+        }),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 3,
+        connectNulls: false,
+        itemStyle: { color: f.color },
+        lineStyle: { width: 2, color: f.color },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        const name = latestRow[`第${rank}名歌名`] || '';
+        const singer = latestRow[`第${rank}名歌手`] || '';
+        const songLabel = singer ? `${singer}-${name}` : name;
+        const songHtml = songLabel
+            ? `<span style="color:#ea3690;font-weight:bold;">当前 TOP${rank}：${songLabel}</span><br>`
+            : '';
+        legendEl.innerHTML = songHtml + rankFields.map(f =>
+            `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.key}</span>`
+        ).join('');
     }
 
-    function initModuleTabs() {
-      const tabs = document.querySelectorAll('.module-tab-btn');
-      const cards = document.querySelectorAll('.module-card');
-      tabs.forEach(btn => {
+    chartInst.hideLoading();
+    chartInst.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                const timeText = times[i] + (r ? '' : '（无数据）');
+                let songText = '';
+                if (r) {
+                    const name = r[`第${rank}名歌名`] || '';
+                    const singer = r[`第${rank}名歌手`] || '';
+                    const song = singer ? `${singer}-${name}` : name;
+                    if (song) songText = ` · ${song}`;
+                }
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeText}${songText}</div>`;
+                if (r) {
+                    params.forEach(p => {
+                        if (p.value === null || p.value === undefined) return;
+                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: {
+                interval: range === '3' ? 'auto' : 1,
+                fontSize: 10,
+                color: '#888',
+                rotate: 45,
+            },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            min: 0,
+            max: 100,
+            interval: 20,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: series,
+    }, true);
+    chartInst.resize();
+}
+
+function loadCsv(url) {
+    return new Promise((resolve) => {
+        Papa.parse(url + '?t=' + new Date().getTime(), {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8',
+            complete: (res) => resolve(res.data || []),
+            error: (err) => {
+                console.error('加载失败', url, err);
+                resolve([]);
+            }
+        });
+    });
+}
+
+let dailyRowsCache = [];
+let weeklyRowsCache = [];
+
+const chartState = {
+    weeklyScore: '24',
+    weeklyRank1: '24',
+    weeklyRank2: '24',
+    weeklyRank3: '24',
+    dailyScore: '3',
+    dailyRank1: '3',
+    dailyRank2: '3',
+    dailyRank3: '3',
+};
+
+const chartConfig = {
+    weeklyScore: { chart: chartWeekly, legend: 'weeklyLegend', field: '得分', y: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyScore:  { chart: chartDaily,  legend: 'dailyLegend',  field: '得分', y: 1, mode: 'daily',  rows: () => dailyRowsCache },
+};
+
+const rankChartConfig = {
+    weeklyRank1: { chart: chartWeeklyRank1, legend: 'weeklyRank1Legend', rank: 1, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank2: { chart: chartWeeklyRank2, legend: 'weeklyRank2Legend', rank: 2, mode: 'weekly', rows: () => weeklyRowsCache },
+    weeklyRank3: { chart: chartWeeklyRank3, legend: 'weeklyRank3Legend', rank: 3, mode: 'weekly', rows: () => weeklyRowsCache },
+    dailyRank1:  { chart: chartDailyRank1,  legend: 'dailyRank1Legend',  rank: 1, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank2:  { chart: chartDailyRank2,  legend: 'dailyRank2Legend',  rank: 2, mode: 'daily',  rows: () => dailyRowsCache },
+    dailyRank3:  { chart: chartDailyRank3,  legend: 'dailyRank3Legend',  rank: 3, mode: 'daily',  rows: () => dailyRowsCache },
+};
+
+function renderChartByKey(key) {
+    if (chartConfig[key]) {
+        const cfg = chartConfig[key];
+        const autoY = (key === 'weeklyScore' || key === 'dailyScore');
+        renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, chartState[key], cfg.mode, autoY);
+    } else if (rankChartConfig[key]) {
+        const cfg = rankChartConfig[key];
+        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, chartState[key], cfg.mode);
+    }
+}
+
+function updateDailyDateLabels() {
+    refreshDailyDateButtons();
+}
+
+(async function init() {
+    updateDailyDateLabels();
+
+    const [dailyRows, weeklyRows] = await Promise.all([
+        loadCsv('uni_chart_daily.csv'),
+        loadCsv('uni_chart_weekly.csv'),
+    ]);
+
+    dailyRowsCache = dailyRows;
+    weeklyRowsCache = weeklyRows;
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    renderRecentTable(dailyRows, 'dailyTableBody');
+    renderRecentTable(weeklyRows, 'weeklyTableBody');
+
+    Object.keys(chartConfig).forEach(key => renderChartByKey(key));
+    Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
+
+    allCharts.forEach(c => c.resize());
+
+    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+    }
+
+    setInterval(updateDailyDateLabels, 60 * 1000);
+})();
+
+document.querySelectorAll('.range-tabs').forEach(wrap => {
+    wrap.querySelectorAll('.range-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-          const mod = this.dataset.module;
-          tabs.forEach(b => b.classList.toggle('active', b === this));
-          cards.forEach(c => c.classList.toggle('active', c.dataset.module === mod));
-          setTimeout(() => {
-            cards.forEach(c => {
-              if (c.classList.contains('active')) {
-                const iframe = c.querySelector('iframe');
-                if (iframe) {
-                  try { iframe.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*'); } catch(e) {}
-                }
-              }
-            });
-          }, 50);
+            wrap.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            const key = wrap.dataset.chart;
+            const range = this.dataset.range;
+            chartState[key] = range;
+            renderChartByKey(key);
         });
-      });
-    }
-
-    function todayStr() {
-      const d = new Date();
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    }
-
-    function exportAllData() {
-      const payload = collectLocalData();
-      if (Object.keys(payload).length === 0) {
-        showAlert('提示', '当前没有任何可导出的数据');
-        return;
-      }
-      const exportObj = {
-        app: '打榜数据录入',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        data: payload
-      };
-      const json = JSON.stringify(exportObj, null, 2);
-      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `打榜全部数据_${todayStr()}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function importAllData(file) {
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        try {
-          const text = e.target.result;
-          const parsed = JSON.parse(text);
-          if (!parsed || typeof parsed !== 'object' || !parsed.data || typeof parsed.data !== 'object') {
-            showAlert('导入失败', '文件格式不正确：缺少 data 字段');
-            return;
-          }
-          const dataObj = parsed.data;
-          const keys = Object.keys(dataObj);
-          if (keys.length === 0) {
-            showAlert('导入失败', '文件中没有任何数据');
-            return;
-          }
-          const bangKeys = keys.filter(k => k.startsWith(STORAGE_PREFIX));
-          if (bangKeys.length === 0) {
-            showAlert('导入失败', '文件中没有找到本应用的数据（未找到 bang_ 开头的键）');
-            return;
-          }
-          let summary = `将导入 <b>${bangKeys.length}</b> 项数据，覆盖当前设备的对应数据。<br><br>包含：<br>`;
-          bangKeys.slice(0, 8).forEach(k => { summary += `- ${escapeHtml(k)}<br>`; });
-          if (bangKeys.length > 8) summary += `- ……等共 ${bangKeys.length} 项<br>`;
-          summary += '<br>确定要导入吗？当前设备的相关数据会被覆盖，此操作不可撤销。';
-          showConfirm('导入全部数据', summary, function(ok) {
-            if (!ok) return;
-            bangKeys.forEach(k => {
-              const v = dataObj[k];
-              localStorage.setItem(k, typeof v === 'string' ? v : JSON.stringify(v));
-            });
-            showAlert('导入成功', '数据已导入，页面将刷新以加载新数据。', function() {
-              location.reload();
-            });
-          });
-        } catch (err) {
-          console.error(err);
-          showAlert('导入失败', '解析失败：' + escapeHtml(err.message));
-        }
-      };
-      reader.onerror = function() {
-        showAlert('读取失败', '读取文件失败');
-      };
-      reader.readAsText(file, 'UTF-8');
-    }
-
-    function initBackupToolbar() {
-      const exportBtn = document.getElementById('exportAllBtn');
-      const importBtn = document.getElementById('importAllBtn');
-      const fileInput = document.getElementById('importJsonInput');
-      exportBtn.addEventListener('click', exportAllData);
-      importBtn.addEventListener('click', () => {
-        fileInput.value = '';
-        fileInput.click();
-      });
-      fileInput.addEventListener('change', function(e) {
-        const file = e.target.files && e.target.files[0];
-        if (file) importAllData(file);
-      });
-      document.getElementById('cloudSaveBtn').addEventListener('click', saveToCloud);
-      document.getElementById('cloudLoadBtn').addEventListener('click', function() {
-        showConfirm('从云端读取', '将用云端数据覆盖当前设备的本地数据，确定吗？', function(ok) {
-          if (!ok) return;
-          loadFromCloud(false);
-        });
-      });
-    }
-
-    // ===== 导出 PNG =====
-    const MODULE_TITLES = {
-      power: '电力（盲盒CD：4h）',
-      youni: '由你积分（>112）',
-      coin: '金币（>48w）',
-      play: '刷播'
-    };
-
-    function requestModuleCapture(iframe) {
-      return new Promise((resolve) => {
-        let finished = false;
-        const timeout = setTimeout(() => {
-          if (!finished) { finished = true; resolve(null); }
-        }, 8000);
-        function onMsg(e) {
-          if (!e.data || e.data.type !== 'capture-result') return;
-          finished = true;
-          clearTimeout(timeout);
-          window.removeEventListener('message', onMsg);
-          resolve(e.data.dataURL || null);
-        }
-        window.addEventListener('message', onMsg);
-        try {
-          iframe.contentWindow.postMessage({ type: 'capture' }, '*');
-        } catch(err) {
-          finished = true;
-          clearTimeout(timeout);
-          window.removeEventListener('message', onMsg);
-          resolve(null);
-        }
-      });
-    }
-
-    async function exportPageAsPng() {
-      const btn = document.getElementById('exportPngBtn');
-      btn.disabled = true;
-      btn.textContent = '生成中...';
-      const grid = document.getElementById('moduleGrid');
-      const isMobile = window.matchMedia('(max-width: 900px)').matches;
-      let prevActiveModule = null;
-      if (isMobile) {
-        const activeCard = document.querySelector('.module-card.active');
-        if (activeCard) prevActiveModule = activeCard.dataset.module;
-        grid.querySelectorAll('.module-card').forEach(c => c.classList.add('force-show'));
-        await new Promise(r => setTimeout(r, 200));
-      }
-      try {
-        const title = document.getElementById('exportTitle').textContent;
-        const subtitle = document.getElementById('exportSubtitle').textContent;
-        const cards = document.querySelectorAll('.module-card');
-        const results = [];
-        for (let i = 0; i < cards.length; i++) {
-          const card = cards[i];
-          const mod = card.dataset.module;
-          const iframe = card.querySelector('iframe');
-          let dataURL = null;
-          if (iframe) dataURL = await requestModuleCapture(iframe);
-          results.push({ mod, title: MODULE_TITLES[mod] || mod, dataURL });
-        }
-        const scale = 4;
-        const gap = 12 * scale;
-        const padding = 32 * scale;
-        const titleH = 24 * scale;
-        const subtitleH = 16 * scale;
-        const cardTitleH = 20 * scale;
-        const colW = 360 * scale;
-        // 先加载所有图片，按 colW 算每张图的内容高度
-        const loadedImgs = [];
-        for (let i = 0; i < results.length; i++) {
-          const r = results[i];
-          if (r.dataURL) {
-            try {
-              const img = await loadImage(r.dataURL);
-              const drawH = colW * (img.height / img.width);
-              loadedImgs.push({ img, drawH });
-            } catch(e) {
-              loadedImgs.push({ img: null, drawH: 200 * scale });
-            }
-          } else {
-            loadedImgs.push({ img: null, drawH: 200 * scale });
-          }
-        }
-
-        // 单列：每张图自己一行
-        const rowHeights = loadedImgs.map(item => item.drawH + cardTitleH);
-        const rows = rowHeights.length;
-
-        const totalW = padding * 2 + colW;
-        let totalH = padding * 2 + titleH + subtitleH;
-        rowHeights.forEach(h => { totalH += h; });
-        totalH += gap * (rows - 1);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = totalW;
-        canvas.height = totalH;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#faf7f9';
-        ctx.fillRect(0, 0, totalW, totalH);
-        ctx.fillStyle = '#ea3690';
-        ctx.font = `bold ${16 * scale}px system-ui, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText(title, totalW / 2, padding);
-        ctx.fillStyle = '#999';
-        ctx.font = `${8 * scale}px system-ui, sans-serif`;
-        ctx.fillText(subtitle, totalW / 2, padding + titleH);
-
-        let currentY = padding + titleH + subtitleH;
-        for (let row = 0; row < rows; row++) {
-          const rowH = rowHeights[row];
-          const r = results[row];
-          const x = padding;
-          const y = currentY;
-
-          ctx.fillStyle = '#fff';
-          roundRect(ctx, x, y, colW, rowH, 6 * scale);
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(234,54,144,0.15)';
-          ctx.lineWidth = 1 * scale;
-          roundRect(ctx, x, y, colW, rowH, 6 * scale);
-          ctx.stroke();
-
-          ctx.fillStyle = '#ea3690';
-          roundRectTop(ctx, x, y, colW, cardTitleH, 6 * scale);
-          ctx.fill();
-
-          ctx.fillStyle = '#fff';
-          ctx.font = `bold ${8 * scale}px system-ui, sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(r.title, x + colW / 2, y + cardTitleH / 2);
-
-          if (r.dataURL) {
-            try {
-              const img = await loadImage(r.dataURL);
-              const contentY = y + cardTitleH;
-              const contentH = rowH - cardTitleH;
-              const imgRatio = img.width / img.height;
-              const boxRatio = colW / contentH;
-              let drawW, drawH, drawX, drawY;
-              if (imgRatio > boxRatio) {
-                drawW = colW; drawH = colW / imgRatio; drawX = x; drawY = contentY;
-              } else {
-                drawH = contentH; drawW = contentH * imgRatio;
-                drawX = x + (colW - drawW) / 2; drawY = contentY;
-              }
-              ctx.drawImage(img, drawX, drawY, drawW, drawH);
-            } catch(err) {}
-          } else {
-            ctx.fillStyle = '#bbb';
-            ctx.font = `${12 * scale}px system-ui, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('（无法获取截图）', x + colW / 2, y + cardTitleH + (rowH - cardTitleH) / 2);
-          }
-
-          currentY += rowH + gap;
-        }
-        // 在 canvas 上平铺水印
-        const wmText = 'mzc051';
-        const wmFontSize = 28 * scale;
-        ctx.save();
-        ctx.font = `900 ${wmFontSize}px system-ui, sans-serif`;
-        ctx.fillStyle = 'rgba(234, 54, 144, 0.08)';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const wmStepX = 200 * scale;
-        const wmStepY = 120 * scale;
-        for (let y = -wmStepY; y < canvas.height + wmStepY; y += wmStepY) {
-          for (let x = -wmStepX; x < canvas.width + wmStepX; x += wmStepX) {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(-25 * Math.PI / 180);
-            ctx.fillText(wmText, 0, 0);
-            ctx.restore();
-          }
-        }
-        ctx.restore();
-        const url = canvas.toDataURL('image/png');
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `打榜截图_${todayStr()}.png`;
-        a.click();
-        showAlert('导出成功', 'PNG 已生成，账号已统一打码为 ***。');
-      } catch(err) {
-        console.error(err);
-        showAlert('导出失败', escapeHtml(err.message || String(err)));
-      } finally {
-        if (isMobile) {
-          grid.querySelectorAll('.module-card').forEach(c => c.classList.remove('force-show'));
-          const cards = document.querySelectorAll('.module-card');
-          cards.forEach(c => c.classList.remove('active'));
-          const restore = document.querySelector(`.module-card[data-module="${prevActiveModule || 'power'}"]`);
-          if (restore) restore.classList.add('active');
-          setTimeout(() => {
-            cards.forEach(c => {
-              if (c.classList.contains('active')) {
-                const iframe = c.querySelector('iframe');
-                if (iframe) {
-                  try { iframe.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*'); } catch(e) {}
-                }
-              }
-            });
-          }, 50);
-        }
-        btn.disabled = false;
-        btn.textContent = '导出 PNG';
-      }
-    }
-
-    function loadImage(src) {
-      return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = src;
-      });
-    }
-
-    function roundRect(ctx, x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
-    function roundRectTop(ctx, x, y, w, h, r) {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h);
-      ctx.lineTo(x, y + h);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    }
-
-    const IFRAME_MODULE_MAP = {
-      '电力（盲盒CD：4h）': 'power',
-      '由你积分（>112）': 'youni',
-      '金币（>48w）': 'coin',
-      '刷播': 'play'
-    };
-    const MODULE_IFRAME_MAP = {};
-    document.querySelectorAll('.module-card iframe').forEach(iframe => {
-      const title = iframe.getAttribute('title');
-      const moduleName = IFRAME_MODULE_MAP[title] || title;
-      MODULE_IFRAME_MAP[moduleName] = iframe;
     });
+});
 
-    const moduleHeights = {};
-
-    function applyUniformHeight() {
-      const values = Object.values(moduleHeights).filter(h => typeof h === 'number' && h > 0);
-      if (values.length === 0) return;
-      const maxH = Math.max.apply(null, values);
-      Object.keys(MODULE_IFRAME_MAP).forEach(name => {
-        const iframe = MODULE_IFRAME_MAP[name];
-        if (iframe) iframe.style.height = maxH + 'px';
-      });
-    }
-
-    // ===== 统一弹窗 =====
-    let pendingModal = null;
-
-    function showModal(payload, sourceWindow, requestId) {
-      closeGlobalModal(null, false);
-      pendingModal = { source: sourceWindow, requestId: requestId };
-      const overlay = document.createElement('div');
-      overlay.className = 'modal-overlay';
-      overlay.id = 'globalModalOverlay';
-      const title = payload.title || '提示';
-      const messageHtml = payload.messageHtml || escapeHtml(payload.message || '');
-      const showInput = payload.showInput === true;
-      const okText = payload.okText || '确定';
-      const cancelText = payload.cancelText || '取消';
-      overlay.innerHTML = `
-        <div class="modal-box">
-          <div class="modal-title">${escapeHtml(title)}</div>
-          <div class="modal-body">
-            ${messageHtml ? `<div class="modal-message">${messageHtml}</div>` : ''}
-            ${showInput ? `<input class="modal-input" type="text" inputmode="numeric" placeholder="${escapeHtml(payload.placeholder || '')}" value="${escapeHtml(payload.defaultValue || '')}">` : ''}
-            <div class="modal-actions">
-              ${payload.showCancel === false ? '' : `<button class="modal-btn-cancel">${escapeHtml(cancelText)}</button>`}
-              <button class="modal-btn-ok">${escapeHtml(okText)}</button>
-            </div>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(overlay);
-      const input = overlay.querySelector('.modal-input');
-      const btnOk = overlay.querySelector('.modal-btn-ok');
-      const btnCancel = overlay.querySelector('.modal-btn-cancel');
-      if (input) setTimeout(() => { input.focus(); input.select(); }, 50);
-      function finish(result) {
-        const pm = pendingModal;
-        pendingModal = null;
-        overlay.remove();
-        document.removeEventListener('keydown', onKey);
-        if (pm && pm.source) {
-          try {
-            pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*');
-          } catch(e) {}
-        } else if (payload.onResult) {
-          payload.onResult(result);
-        }
-      }
-      function confirm() {
-        const val = input ? input.value : '';
-        finish({ confirmed: true, value: val });
-      }
-      function cancel() {
-        finish({ confirmed: false, value: null });
-      }
-      btnOk.addEventListener('click', confirm);
-      if (btnCancel) btnCancel.addEventListener('click', cancel);
-      overlay.addEventListener('click', function(e){
-        if (e.target === overlay) cancel();
-      });
-      function onKey(e) {
-        if (e.key === 'Escape') { e.preventDefault(); cancel(); }
-        else if (e.key === 'Enter') { e.preventDefault(); confirm(); }
-      }
-      document.addEventListener('keydown', onKey);
-    }
-
-    function closeGlobalModal(result, notify) {
-      const overlay = document.getElementById('globalModalOverlay');
-      if (overlay) overlay.remove();
-      const pm = pendingModal;
-      pendingModal = null;
-      if (pm && notify && pm.source) {
-        try {
-          pm.source.postMessage({ type: 'modal-result', requestId: pm.requestId, value: result }, '*');
-        } catch(e) {}
-      }
-    }
-
-    function showAlert(title, messageHtml, onClose) {
-      showModal({
-        title: title,
-        messageHtml: messageHtml,
-        showInput: false,
-        showCancel: false,
-        okText: '知道了',
-        onResult: function() { if (onClose) onClose(); }
-      }, null, '');
-    }
-
-    function showConfirm(title, messageHtml, onResult) {
-      showModal({
-        title: title,
-        messageHtml: messageHtml,
-        showInput: false,
-        showCancel: true,
-        okText: '确定',
-        cancelText: '取消',
-        onResult: function(result) {
-          if (onResult) onResult(!!(result && result.confirmed));
-        }
-      }, null, '');
-    }
-
-    function escapeHtml(s) {
-      return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    }
-
-    window.addEventListener('message', function(e) {
-      if (!e.data) return;
-      if (e.data.type === 'show-modal') {
-        showModal(e.data.payload || {}, e.source, e.data.requestId || '');
-        return;
-      }
-      if (e.data.type === 'delete-account') {
-        const name = e.data.account;
-        if (!name) return;
-        const idx = globalAccounts.indexOf(name);
-        if (idx === -1) return;
-        showConfirm('删除打榜账号', `确定删除打榜账号「<b>${escapeHtml(name)}</b>」吗？<br>所有模块中该账号的数据都会被清除。`, function(ok) {
-          if (!ok) return;
-          globalAccounts.splice(idx, 1);
-          saveGlobalAccounts(globalAccounts);
-          updateGlobalCount();
-          broadcastAccountsChanged();
-        });
-        return;
-      }
-      if (e.data.type === 'resize') {
-        const moduleName = e.data.module;
-        const h = Number(e.data.height) || 0;
-        if (!moduleName || h <= 0) return;
-        moduleHeights[moduleName] = h;
-        applyUniformHeight();
-      }
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('panel-' + this.dataset.tab).classList.add('active');
+        allCharts.forEach(c => c.resize());
     });
+});
 
-    function syncIframeHeightFromDoc(iframe, moduleName) {
-      try {
-        const doc = iframe.contentWindow.document;
-        const h = Math.max(
-          doc.body.scrollHeight,
-          doc.documentElement.scrollHeight,
-          doc.body.offsetHeight,
-          doc.documentElement.offsetHeight
-        );
-        if (h > 0) {
-          moduleHeights[moduleName] = h;
-          applyUniformHeight();
-        }
-      } catch (err) {}
-    }
-
-    document.querySelectorAll('.module-card iframe').forEach(iframe => {
-      const title = iframe.getAttribute('title');
-      const moduleName = IFRAME_MODULE_MAP[title] || title;
-      iframe.addEventListener('load', function() {
-        try {
-          this.contentWindow.postMessage({ type: 'accounts-changed', accounts: globalAccounts }, '*');
-        } catch(e) {}
-        syncIframeHeightFromDoc(this, moduleName);
-        setTimeout(() => syncIframeHeightFromDoc(this, moduleName), 300);
-      });
-    });
-
-    initAuthBar();
-    initGlobalToolbar();
-    initBackupToolbar();
-    initModuleTabs();
-    initSupabase();
-  </script>
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        allCharts.forEach(c => c.resize());
+    }, 200);
+});
+</script>
 </body>
 </html>
