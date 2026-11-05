@@ -771,7 +771,7 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         const singer = latestRow[`第${rank}名歌手`] || '';
         const songLabel = singer ? `${singer}-${name}` : name;
         const songHtml = songLabel
-            ? `<span style="color:#ea3690;font-weight:bold;">当前 TOP${rank}：${songLabel}</span><br>`
+            ? `<span style="color:#ea3690;font-weight:bold;">当前：${songLabel}</span><br>`
             : '';
         legendEl.innerHTML = songHtml + rankFields.map(f =>
             `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.key}</span>`
