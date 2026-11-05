@@ -1,0 +1,290 @@
+/* ===== 基础重置 ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  background: #fff;
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+}
+
+/* ===== 统计卡片 ===== */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+.stat-card {
+  background: #fdf7fa;
+  border-radius: 8px;
+  padding: 6px 8px;
+  border: 1px solid #f3e6ee;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.stat-card .s-label { font-size: 10px; color: #999; font-weight: bold; white-space: nowrap; }
+.stat-card .s-value { font-size: 17px; font-weight: bold; color: #ea3690; line-height: 1.1; white-space: nowrap; }
+.stat-card.done .s-value { color: #f97316; }
+
+/* ===== 工具栏按钮 ===== */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+  justify-content: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+  flex-shrink: 0;
+}
+.toolbar button {
+  flex: 1;
+  min-width: 80px;
+  padding: 6px 8px;
+  border-radius: 16px;
+  border: 1px solid rgba(234,54,144,0.35);
+  background: white;
+  color: #ea3690;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.toolbar button:hover { background: rgba(234,54,144,0.06); }
+.toolbar button.danger { border-color: rgba(231,76,60,0.4); color: #e74c3c; }
+.toolbar button.danger:hover { background: rgba(231,76,60,0.06); }
+
+/* ===== 表格容器：横向 + 纵向滚动，高度受限 ===== */
+.table-box {
+  --row-h: 42px;       /* 每行数据高度 */
+  --rows: 10;          /* 显示多少行 */
+  --head-h: 32px;      /* 表头高度（含 padding 和边框的保守值） */
+  --foot-h: 44px;      /* 表尾高度（含边框的保守值） */
+  --extra: 8px;        /* 额外余量，防止差 1–2px 截断 */
+  max-height: calc(var(--head-h) + var(--foot-h) + var(--row-h) * var(--rows) + var(--extra));
+  /* 其余属性不变 */
+  background: white;
+  border-radius: 8px;
+  padding: 4px;
+  border: 1px solid #f3e6ee;
+  overflow-x: auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  isolation: isolate;
+}
+
+/* ===== 表格通用 ===== */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 11px;
+  min-width: 720px;
+  table-layout: auto;
+}
+
+/* 普通表头：固定在 table-box 顶部 */
+thead th {
+  background: #ea3690;
+  color: #fff;
+  font-weight: bold;
+  padding: 6px 4px;
+  text-align: center;
+  font-size: 11px;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border: 1px solid rgba(255,255,255,0.3);
+  min-width: 60px;
+}
+
+/* 表头账号列：固定在左上角，层级最高 */
+thead th:first-child {
+  border-top-left-radius: 6px;
+  position: sticky;
+  top: 0;
+  left: 0;
+  z-index: 999;
+  background: #ea3690;
+  text-align: left;
+  padding-left: 6px;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  box-sizing: border-box;
+  border-right: 1px solid rgba(255,255,255,0.3);
+}
+thead th:last-child {
+  border-top-right-radius: 6px;
+}
+
+/* 行高 */
+tbody tr {
+  height: 42px;
+}
+
+/* 普通单元格 */
+tbody td {
+  padding: 0 4px;
+  text-align: center;
+  vertical-align: middle;
+  border-bottom: 1px solid #f3e6ee;
+  white-space: nowrap;
+  background: #fff;
+  position: relative;
+  z-index: 1;
+  min-width: 60px;
+}
+tbody tr:nth-child(even) td { background: #fdf7fa; }
+
+/* ===== 表尾合计：固定在 table-box 底部 ===== */
+tfoot tr {
+  height: 42px;
+}
+tfoot td {
+  background: #fdf7fa;
+  border-top: 1px solid #f0d6e4;
+  padding: 0 4px;
+  vertical-align: middle;
+  font-weight: bold;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  min-width: 60px;
+}
+
+/* 账号列合计：固定在左下角，层级最高 */
+tfoot td:first-child {
+  position: sticky;
+  left: 0;
+  bottom: 0;
+  z-index: 998;          /* 高于 tfoot td 的 5，高于账号列 td 的 998？用 998 和账号列同级，但 bottom 固定在下方 */
+  background: #fdf7fa;
+  border-right: 1px solid #f3e6ee;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  box-sizing: border-box;
+  text-align: left;
+  padding-left: 6px;
+}
+
+/* 操作列合计：保持 36px，不被 min-width 撑开 */
+tfoot td:last-child {
+  min-width: 36px;
+  width: 36px;
+  max-width: 36px;
+}
+
+/* 账号列 td：固定在左侧，88px */
+.account-cell {
+  text-align: left !important;
+  font-weight: bold;
+  color: #555;
+  padding-left: 6px !important;
+  white-space: nowrap;
+  position: sticky;
+  left: 0;
+  z-index: 998;
+  background: #fff;
+  width: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  box-sizing: border-box;
+  border-right: 1px solid #f3e6ee;
+}
+tbody tr:nth-child(even) .account-cell { background: #fdf7fa; }
+
+.account-text {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: bold;
+  color: #555;
+  font-size: 11px;
+}
+
+/* 数值输入 */
+.cell-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 32px;
+}
+input.score {
+  width: 100%;
+  max-width: 76px;
+  height: 30px;
+  padding: 0 4px;
+  text-align: center;
+  line-height: 28px;
+  background: white;
+  border: 1px solid #f0d6e4;
+  border-radius: 6px;
+  color: #333;
+  font-size: 11px;
+  font-weight: bold;
+  outline: none;
+  transition: 0.15s;
+  font-family: inherit;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+input.score::-webkit-outer-spin-button,
+input.score::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.score:focus { border-color: #ea3690; box-shadow: 0 0 0 2px rgba(234,54,144,0.12); }
+input.score::placeholder { color: #ccc; font-weight: normal; text-align: center; }
+
+/* 底部合计数字 */
+.col-total {
+  color: #7c3aed;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+
+/* 空状态 */
+.empty-row td {
+  padding: 20px 8px !important;
+  text-align: center;
+  color: #bbb;
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: normal;
+}
+
+/* 隐藏文件输入 */
+#fileInput { display: none; }
+
+/* ===== 响应式 ===== */
+@media (max-width: 900px) {
+  .stats-row { gap: 5px; }
+  .stat-card .s-value { font-size: 15px; }
+  .toolbar button { min-width: 64px; font-size: 11px; padding: 6px 4px; }
+  .table-box { --rows: 10; }
+  table { min-width: 640px; }
+}
