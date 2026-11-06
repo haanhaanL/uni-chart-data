@@ -438,7 +438,15 @@ function renderRecentTable(rows, tbodyId) {
         return;
     }
     const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
-    const recent = sorted.slice(0, 10);
+    // 跳过 1:00–5:59 的记录
+    const filtered = sorted.filter(r => {
+        const t = parseTime(r['时间']);
+        if (!t) return true;
+        const h = t.getHours();
+        return !(h >= 1 && h <= 5);
+    });
+    
+    const recent = filtered.slice(0, 10);
     tbody.innerHTML = recent.map(r => {
         const displayTime = stripYear(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
