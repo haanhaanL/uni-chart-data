@@ -297,7 +297,7 @@
             <div class="score-row">
                 <div class="score-table-col">
                     <div class="card">
-                        <div class="title">日榜 · 最近10条</div>
+                        <div class="title">日榜 · 当日最近10条</div>
                         <div class="table-scroll-box">
                             <table class="recent-table">
                                 <colgroup>
@@ -431,22 +431,48 @@ function refreshDailyTopDate() {
     if (el) el.textContent = fmtDateLabel(getTodayDateForDaily());
 }
 
-function renderRecentTable(rows, tbodyId) {
+/**
+ * 渲染最近10条表格
+ * @param {Array} rows 原始数据
+ * @param {String} tbodyId 表格tbody的id
+ * @param {Boolean} sameDayOnly 是否只保留“当日”的记录（日榜传true，周榜传false）
+ */
+function renderRecentTable(rows, tbodyId, sameDayOnly) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
         return;
     }
+
     const sorted = [...rows].sort((a, b) => (b['时间'] || '').localeCompare(a['时间'] || ''));
+
+    let filtered = sorted;
+
+    // 日榜：只保留“当日”的记录
+    if (sameDayOnly) {
+        const todayKey = fmtDateKey(getTodayDateForDaily());
+        filtered = filtered.filter(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return false;
+            return fmtDateKey(t) === todayKey;
+        });
+    }
+
     // 跳过 1:00–5:59 的记录
-    const filtered = sorted.filter(r => {
+    filtered = filtered.filter(r => {
         const t = parseTime(r['时间']);
         if (!t) return true;
         const h = t.getHours();
         return !(h >= 1 && h <= 5);
     });
-    
+
     const recent = filtered.slice(0, 10);
+
+    if (!recent.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+
     tbody.innerHTML = recent.map(r => {
         const displayTime = stripYear(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
@@ -915,8 +941,9 @@ function updateDailyDateLabels() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    renderRecentTable(dailyRows, 'dailyTableBody');
-    renderRecentTable(weeklyRows, 'weeklyTableBody');
+    // 日榜：只保留当日最近10条；周榜：跨天取最近10条
+    renderRecentTable(dailyRows, 'dailyTableBody', true);
+    renderRecentTable(weeklyRows, 'weeklyTableBody', false);
 
     Object.keys(chartConfig).forEach(key => renderChartByKey(key));
     Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
