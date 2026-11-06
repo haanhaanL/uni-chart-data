@@ -139,6 +139,15 @@
     .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
     }
+    .recent-table tbody tr.placeholder-row {
+        background-color: transparent !important;
+    }
+    .recent-table tbody tr.placeholder-row td {
+        border-bottom-color: transparent;
+    }
+    .recent-table tbody tr.placeholder-row td:first-child {
+        background-color: #ffffff !important;
+    }
     .recent-table .song-cell {
         max-width: 130px;
         white-space: nowrap;
@@ -242,7 +251,7 @@
                     <div class="card">
                         <div class="title">周榜 · 总分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
-                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="3d">最近三天</button>
                             <button class="range-btn" data-range="10d">最近十天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
@@ -257,7 +266,7 @@
                     <div class="card">
                         <div class="title">周榜 · TOP1</div>
                         <div class="range-tabs" data-chart="weeklyRank1">
-                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="3d">最近三天</button>
                             <button class="range-btn" data-range="10d">最近十天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank1Legend"></div>
@@ -268,7 +277,7 @@
                     <div class="card">
                         <div class="title">周榜 · TOP2</div>
                         <div class="range-tabs" data-chart="weeklyRank2">
-                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="3d">最近三天</button>
                             <button class="range-btn" data-range="10d">最近十天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank2Legend"></div>
@@ -279,7 +288,7 @@
                     <div class="card">
                         <div class="title">周榜 · TOP3</div>
                         <div class="range-tabs" data-chart="weeklyRank3">
-                            <button class="range-btn active" data-range="24">最近24小时</button>
+                            <button class="range-btn active" data-range="3d">最近三天</button>
                             <button class="range-btn" data-range="10d">最近十天</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank3Legend"></div>
@@ -473,7 +482,7 @@ function renderRecentTable(rows, tbodyId, sameDayOnly) {
         return;
     }
 
-    tbody.innerHTML = recent.map(r => {
+    const htmlRows = recent.map(r => {
         const displayTime = stripYear(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
         for (let i = 1; i <= 3; i++) {
@@ -488,7 +497,20 @@ function renderRecentTable(rows, tbodyId, sameDayOnly) {
             cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
-    }).join('');
+    });
+
+    // 不足10条时补占位空行，保持表格高度一致
+    const placeholderCount = 10 - recent.length;
+    for (let i = 0; i < placeholderCount; i++) {
+        htmlRows.push(`<tr class="placeholder-row">
+            <td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td>
+        </tr>`);
+    }
+
+    tbody.innerHTML = htmlRows.join('');
 }
 
 function buildAxis(rows, range) {
@@ -508,6 +530,43 @@ function buildAxis(rows, range) {
             const t = r['时间'] || '';
             const p = t.split(' ');
             return p.length > 1 ? p[1] : t;
+        });
+    } else if (range === '3d') {
+        // 最近三天：每天 06:06、12:06、18:06、次日 00:06
+        const effectiveToday = getTodayDateForDaily();
+
+        const rowByKey = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            rowByKey[key] = r;
+        });
+
+        const days = [];
+        for (let i = 2; i >= 0; i--) {
+            const d = new Date(effectiveToday);
+            d.setDate(d.getDate() - i);
+            days.push(d);
+        }
+
+        days.forEach(d => {
+            const dayKey = fmtDateKey(d);
+            const nextDay = new Date(d);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextKey = fmtDateKey(nextDay);
+
+            // 当天 06:06、12:06、18:06
+            [6, 12, 18].forEach(h => {
+                const key = `${dayKey} ${String(h).padStart(2, '0')}:06`;
+                rowsByColumn.push(rowByKey[key] || null);
+                times.push(`${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(h).padStart(2, '0')}:06`);
+            });
+
+            // 次日 00:06
+            const key0 = `${nextKey} 00:06`;
+            rowsByColumn.push(rowByKey[key0] || null);
+            times.push(`${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')} 00:06`);
         });
     } else if (range === '24') {
         const byMin06 = {};
@@ -573,7 +632,7 @@ function buildAxis(rows, range) {
 function calcScoreYRange(rows, mode) {
     let ranges;
     if (mode === 'weekly') {
-        ranges = ['24', '10d'];
+        ranges = ['3d', '10d'];
     } else {
         ranges = ['today'];
     }
@@ -601,7 +660,7 @@ function calcScoreYRange(rows, mode) {
 }
 
 function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, autoY) {
-    range = range || '24';
+    range = range || '3d';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
 
@@ -751,7 +810,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
             boundaryGap: false,
             data: times,
             axisLabel: {
-                interval: range === '3' ? 'auto' : 1,
+                interval: range === '3d' ? 0 : 1,
                 fontSize: 10,
                 color: '#888',
                 rotate: 45,
@@ -765,7 +824,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
 }
 
 function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
-    range = range || '24';
+    range = range || '3d';
     const legendEl = document.getElementById(legendId);
     const { rowsByColumn, times } = buildAxis(rows, range);
 
@@ -845,7 +904,7 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
             boundaryGap: false,
             data: times,
             axisLabel: {
-                interval: range === '3' ? 'auto' : 1,
+                interval: range === '3d' ? 0 : 1,
                 fontSize: 10,
                 color: '#888',
                 rotate: 45,
@@ -886,10 +945,10 @@ let dailyRowsCache = [];
 let weeklyRowsCache = [];
 
 const chartState = {
-    weeklyScore: '24',
-    weeklyRank1: '24',
-    weeklyRank2: '24',
-    weeklyRank3: '24',
+    weeklyScore: '3d',
+    weeklyRank1: '3d',
+    weeklyRank2: '3d',
+    weeklyRank3: '3d',
     dailyScore: 'today',
     dailyRank1: 'today',
     dailyRank2: 'today',
