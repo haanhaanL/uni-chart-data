@@ -4,9 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>腾讯音乐由你榜 · TOP3追踪</title>
-<script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <style>
     body {
         margin: 0; padding: 8px; background-color: #faf7f9;
@@ -261,7 +260,7 @@
                 </div>
             </div>
 
-            <!-- TOP1/2/3 去掉涨幅 tab -->
+            <!-- TOP1/2/3 无涨幅 tab -->
             <div class="charts-row">
                 <div class="chart-col-3">
                     <div class="card">
@@ -465,9 +464,8 @@ function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
 
 /**
  * 日榜近七日涨幅就近计算：
- * 起点：当天 06:06；如果缺失，在当天 06:06 之后找最近一条有得分的记录。
- * 终点：次日 00:06；如果缺失，在次日 00:06 之前找最近一条有得分的记录。
- * 返回 { deltaRow, startLabel, endLabel }，deltaRow 里带第1-3名得分差。
+ * 起点：当天 06:06；缺失则在当天 06:06 之后找最近一条有得分的记录。
+ * 终点：次日 00:06；缺失则在次日 00:06 之前找最近一条有得分的记录。
  */
 function calc7dDeltaNear(dayKey, nextKey, rowByKey, allSorted) {
     const findAfter = (dayKeyStr, hhmm) => {
@@ -822,10 +820,9 @@ function buildAxis(rows, range) {
             rowsByColumn.push(row || null);
             const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             times.push(label);
-            fullTimes.push(label + '（次日00:06）');
+            fullTimes.push(label);
         }
     } else if (range === '7dDelta') {
-        // 近七日涨幅：次日 00:06 − 当天 06:06；缺失时在范围内就近取
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         allSorted.forEach(r => {
@@ -896,7 +893,7 @@ function buildAxis(rows, range) {
             rowsByColumn.push(displayRow);
             const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             times.push(label);
-            fullTimes.push(label + '（次日00:06）');
+            fullTimes.push(label);
         }
     } else if (range === '10dDelta') {
         const effectiveToday = getTodayDateForDaily();
@@ -976,7 +973,6 @@ function buildAxis(rows, range) {
 function calcScoreYRange(rows, mode, range) {
     if (mode === 'weekly') {
         if (range === '10d0') {
-            // 周榜总分：下限自适应，上限 100
             const { rowsByColumn } = buildAxis(rows, range);
             let min = Infinity;
             rowsByColumn.forEach(r => {
@@ -999,11 +995,28 @@ function calcScoreYRange(rows, mode, range) {
 
     if (mode === 'daily') {
         if (range === '7d0') {
-            // 日榜近7日：上限 98
-            return { min: undefined, max: 98 };
+            // 日榜近7日：自适应
+            const { rowsByColumn } = buildAxis(rows, range);
+            let min = Infinity, max = -Infinity;
+            rowsByColumn.forEach(r => {
+                if (!r) return;
+                for (let rank = 1; rank <= 3; rank++) {
+                    const s = r[`第${rank}名得分`] || '';
+                    const v = parseFloat(s);
+                    if (!isNaN(v)) {
+                        if (v < min) min = v;
+                        if (v > max) max = v;
+                    }
+                }
+            });
+            if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: undefined };
+            const pad = Math.max((max - min) * 0.08, 1);
+            let lo = Math.floor((min - pad) / 5) * 5;
+            let hi = Math.ceil((max + pad) / 5) * 5;
+            if (hi <= lo) hi = lo + 5;
+            return { min: lo, max: hi };
         }
         if (range === '7dDelta') {
-            // 日榜近七日涨幅：最低 0，上限自适应，约 6 个刻度
             const { rowsByColumn } = buildAxis(rows, range);
             let max = -Infinity;
             rowsByColumn.forEach(r => {
@@ -1025,7 +1038,6 @@ function calcScoreYRange(rows, mode, range) {
             return { min: 0, max: niceMax, interval: niceStep };
         }
         if (range === 'today') {
-            // 日榜今日：上限 98
             const { rowsByColumn } = buildAxis(rows, range);
             let min = Infinity, max = -Infinity;
             rowsByColumn.forEach(r => {
@@ -1198,7 +1210,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                     : fullLabel + (r ? '' : '（无数据）');
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
                 if (r) {
-                    // 近七日涨幅：标注实际使用的两个时间点
                     if (range === '7dDelta' && r.__startLabel && r.__endLabel) {
                         html += `<div style="font-size:11px;color:#999;margin-bottom:2px;">`
                               + `起点：${r.__startLabel}　终点：${r.__endLabel}`
@@ -1218,9 +1229,12 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                             }
                         }
 
+                        // 周榜涨幅图：只显示总涨幅，不显示官方增幅小字
+                        let showDelta = !(mode === 'weekly' && range === '10dDelta');
+
                         let text = '';
                         let color = '#999';
-                        if (deltaRaw !== '') {
+                        if (showDelta && deltaRaw !== '') {
                             const fv = parseFloat(deltaRaw);
                             text = (fv > 0 ? '+' : '') + deltaRaw;
                             color = fv > 0 ? '#ea3690' : '#999';
@@ -1229,7 +1243,9 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                         html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
                               + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
                               + `<span style="width:48px;text-align:right;white-space:nowrap;">${p.value}</span>`
-                              + `<span style="width:48px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
+                              + (showDelta
+                                  ? `<span style="width:48px;text-align:right;white-space:nowrap;color:${color};">${text}</span>`
+                                  : '')
                               + `</div>`;
                     });
                 }
