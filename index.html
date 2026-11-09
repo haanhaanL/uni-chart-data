@@ -215,7 +215,7 @@
         <!-- ================= 周榜 ================= -->
         <div class="tab-panel active" id="panel-weekly">
             <div class="range-hint" style="margin-bottom:8px;">
-                每天取次日 00:06 的数据；增幅 = 次日 00:06 得分 − 当天 06:06 得分
+                涨幅优先取「次日 00:06 − 当天 06:06」；缺失时回退为「当天最后一条 − 当天第一条」
             </div>
             <div class="score-row">
                 <div class="score-table-col">
@@ -251,8 +251,8 @@
                     <div class="card">
                         <div class="title">周榜 · 总分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
-                            <button class="range-btn active" data-range="10d0">最近十天</button>
-                            <button class="range-btn" data-range="10dDelta">最近十天涨幅</button>
+                            <button class="range-btn active" data-range="10d0">近十天总分</button>
+                            <button class="range-btn" data-range="10dDelta">近十天涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
@@ -266,8 +266,8 @@
                     <div class="card">
                         <div class="title">周榜 · TOP1</div>
                         <div class="range-tabs" data-chart="weeklyRank1">
-                            <button class="range-btn active" data-range="10d0">最近十天</button>
-                            <button class="range-btn" data-range="10dDelta">最近十天涨幅</button>
+                            <button class="range-btn active" data-range="10d0">近十天总分</button>
+                            <button class="range-btn" data-range="10dDelta">近十天涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank1Legend"></div>
                         <div class="chart-wrapper" id="chartWeeklyRank1"></div>
@@ -277,8 +277,8 @@
                     <div class="card">
                         <div class="title">周榜 · TOP2</div>
                         <div class="range-tabs" data-chart="weeklyRank2">
-                            <button class="range-btn active" data-range="10d0">最近十天</button>
-                            <button class="range-btn" data-range="10dDelta">最近十天涨幅</button>
+                            <button class="range-btn active" data-range="10d0">近十天总分</button>
+                            <button class="range-btn" data-range="10dDelta">近十天涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank2Legend"></div>
                         <div class="chart-wrapper" id="chartWeeklyRank2"></div>
@@ -288,8 +288,8 @@
                     <div class="card">
                         <div class="title">周榜 · TOP3</div>
                         <div class="range-tabs" data-chart="weeklyRank3">
-                            <button class="range-btn active" data-range="10d0">最近十天</button>
-                            <button class="range-btn" data-range="10dDelta">最近十天涨幅</button>
+                            <button class="range-btn active" data-range="10d0">近十天总分</button>
+                            <button class="range-btn" data-range="10dDelta">近十天涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyRank3Legend"></div>
                         <div class="chart-wrapper" id="chartWeeklyRank3"></div>
@@ -441,8 +441,39 @@ function refreshDailyTopDate() {
 }
 
 /**
- * 渲染最近10条表格（日榜用）
+ * 计算某天的累计涨幅（带回退）：
+ * 优先：次日 00:06 得分 − 当天 06:06 得分
+ * 回退：当天最后一条得分 − 当天第一条得分
  */
+function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
+    const next0006 = rowByKey[`${nextKey} 00:06`];
+    const cur0606 = rowByKey[`${dayKey} 06:06`];
+
+    const dayList = (dayRowsMap[dayKey] || []).slice().sort(
+        (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
+    );
+    const first = dayList[0];
+    const last = dayList[dayList.length - 1];
+
+    const delta = {};
+    for (let rank = 1; rank <= 3; rank++) {
+        let s1 = next0006 ? parseFloat(next0006[`第${rank}名得分`]) : NaN;
+        let s0 = cur0606 ? parseFloat(cur0606[`第${rank}名得分`]) : NaN;
+
+        if (!isNaN(s1) && !isNaN(s0)) {
+            delta[rank] = s1 - s0;
+            continue;
+        }
+
+        const f0 = first ? parseFloat(first[`第${rank}名得分`]) : NaN;
+        const f1 = last ? parseFloat(last[`第${rank}名得分`]) : NaN;
+        delta[rank] = (!isNaN(f0) && !isNaN(f1)) ? (f1 - f0) : null;
+    }
+
+    const displayRow = next0006 || last || null;
+    return { delta, displayRow };
+}
+
 function renderRecentTable(rows, tbodyId, sameDayOnly) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -507,11 +538,6 @@ function renderRecentTable(rows, tbodyId, sameDayOnly) {
     tbody.innerHTML = htmlRows.join('');
 }
 
-/**
- * 周榜表格：最近十天
- * 每天展示“次日 00:06”那条记录；
- * 增幅 = 次日 00:06 得分 − 当天 06:06 得分。
- */
 function renderWeeklyTenDayTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -519,18 +545,25 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
         return;
     }
 
-    // 建立精确时间索引
     const rowByKey = {};
+    const dayRowsMap = {};
     rows.forEach(r => {
         const t = parseTime(r['时间']);
         if (!t) return;
         const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
         rowByKey[key] = r;
+
+        const eff = new Date(t);
+        if (t.getHours() === 0 && t.getMinutes() < 10) {
+            eff.setDate(eff.getDate() - 1);
+        }
+        const dayKey = fmtDateKey(eff);
+        if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+        dayRowsMap[dayKey].push(r);
     });
 
     const effectiveToday = getTodayDateForDaily();
 
-    // 最近十天，每天取次日 00:06，涨幅用次日 00:06 − 当天 06:06
     const daySummaries = [];
     for (let i = 9; i >= 0; i--) {
         const d = new Date(effectiveToday);
@@ -540,26 +573,12 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
         nextDay.setDate(nextDay.getDate() + 1);
         const nextKey = fmtDateKey(nextDay);
 
-        const next0006 = rowByKey[`${nextKey} 00:06`];
-        if (!next0006) continue;
+        const { delta, displayRow } = calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap);
+        if (!displayRow) continue;
 
-        const cur0606 = rowByKey[`${dayKey} 06:06`];
-
-        const delta = {};
-        for (let rank = 1; rank <= 3; rank++) {
-            const s1 = parseFloat(next0006[`第${rank}名得分`]);
-            const s0 = cur0606 ? parseFloat(cur0606[`第${rank}名得分`]) : NaN;
-            delta[rank] = (!isNaN(s0) && !isNaN(s1)) ? (s1 - s0) : null;
-        }
-
-        daySummaries.push({
-            day: d,
-            row: next0006,
-            delta
-        });
+        daySummaries.push({ day: d, row: displayRow, delta });
     }
 
-    // 倒序：最新的在前
     daySummaries.sort((a, b) => b.day - a.day);
 
     if (!daySummaries.length) {
@@ -705,37 +724,23 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === '10d0') {
-        // 最近十天：每天取“次日 00:06”的数据
+        // 最近十天：每天取“次日 00:06”的数据；缺失时用当天最后一条
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
+        const dayRowsMap = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
             if (!t) return;
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
             rowByKey[key] = r;
-        });
 
-        for (let i = 9; i >= 0; i--) {
-            const d = new Date(effectiveToday);
-            d.setDate(d.getDate() - i);
-            const nextDay = new Date(d);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const nextKey = fmtDateKey(nextDay);
-
-            rowsByColumn.push(rowByKey[`${nextKey} 00:06`] || null);
-            const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            times.push(label);
-            fullTimes.push(label + '（次日00:06）');
-        }
-    } else if (range === '10dDelta') {
-        // 最近十天涨幅：次日 00:06 得分 − 当天 06:06 得分
-        const effectiveToday = getTodayDateForDaily();
-        const rowByKey = {};
-        allSorted.forEach(r => {
-            const t = parseTime(r['时间']);
-            if (!t) return;
-            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-            rowByKey[key] = r;
+            const eff = new Date(t);
+            if (t.getHours() === 0 && t.getMinutes() < 10) {
+                eff.setDate(eff.getDate() - 1);
+            }
+            const dayKey = fmtDateKey(eff);
+            if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+            dayRowsMap[dayKey].push(r);
         });
 
         for (let i = 9; i >= 0; i--) {
@@ -747,19 +752,59 @@ function buildAxis(rows, range) {
             const nextKey = fmtDateKey(nextDay);
 
             const next0006 = rowByKey[`${nextKey} 00:06`];
-            const cur0606 = rowByKey[`${dayKey} 06:06`];
+            let displayRow = next0006;
+            if (!displayRow) {
+                const list = (dayRowsMap[dayKey] || []).slice().sort(
+                    (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
+                );
+                displayRow = list[list.length - 1] || null;
+            }
+
+            rowsByColumn.push(displayRow);
+            const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            times.push(label);
+            fullTimes.push(label + '（次日00:06）');
+        }
+    } else if (range === '10dDelta') {
+        // 最近十天涨幅：优先「次日 00:06 − 当天 06:06」，缺失时回退「当天最后 − 当天第一」
+        const effectiveToday = getTodayDateForDaily();
+        const rowByKey = {};
+        const dayRowsMap = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            rowByKey[key] = r;
+
+            const eff = new Date(t);
+            if (t.getHours() === 0 && t.getMinutes() < 10) {
+                eff.setDate(eff.getDate() - 1);
+            }
+            const dayKey = fmtDateKey(eff);
+            if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+            dayRowsMap[dayKey].push(r);
+        });
+
+        for (let i = 9; i >= 0; i--) {
+            const d = new Date(effectiveToday);
+            d.setDate(d.getDate() - i);
+            const dayKey = fmtDateKey(d);
+            const nextDay = new Date(d);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextKey = fmtDateKey(nextDay);
+
+            const { delta, displayRow } = calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap);
 
             let deltaRow = null;
-            if (next0006) {
+            if (displayRow) {
                 deltaRow = {};
                 for (let rank = 1; rank <= 3; rank++) {
-                    const s1 = parseFloat(next0006[`第${rank}名得分`]);
-                    const s0 = cur0606 ? parseFloat(cur0606[`第${rank}名得分`]) : NaN;
-                    if (!isNaN(s0) && !isNaN(s1)) {
-                        deltaRow[`第${rank}名得分`] = String((s1 - s0).toFixed(2));
-                        deltaRow[`第${rank}名歌名`] = next0006[`第${rank}名歌名`];
-                        deltaRow[`第${rank}名歌手`] = next0006[`第${rank}名歌手`];
-                        deltaRow[`第${rank}名官方增幅`] = next0006[`第${rank}名官方增幅`];
+                    const val = delta[rank];
+                    if (val !== null && !isNaN(val)) {
+                        deltaRow[`第${rank}名得分`] = String(val.toFixed(2));
+                        deltaRow[`第${rank}名歌名`] = displayRow[`第${rank}名歌名`];
+                        deltaRow[`第${rank}名歌手`] = displayRow[`第${rank}名歌手`];
+                        deltaRow[`第${rank}名官方增幅`] = displayRow[`第${rank}名官方增幅`];
                     }
                 }
             }
@@ -796,7 +841,22 @@ function buildAxis(rows, range) {
     return { rowsByColumn, times, fullTimes };
 }
 
-function calcScoreYRange(rows, mode) {
+/**
+ * 周榜总分图 Y 轴：
+ * - 10d0（近十天总分）：固定 90–100
+ * - 10dDelta（近十天涨幅）：固定 0–1
+ * 其他范围沿用自动范围
+ */
+function calcScoreYRange(rows, mode, range) {
+    if (mode === 'weekly') {
+        if (range === '10d0') {
+            return { min: 90, max: 100 };
+        }
+        if (range === '10dDelta') {
+            return { min: 0, max: 1 };
+        }
+    }
+
     let ranges;
     if (mode === 'weekly') {
         ranges = ['10d0', '10dDelta'];
@@ -804,8 +864,8 @@ function calcScoreYRange(rows, mode) {
         ranges = ['today'];
     }
     let min = Infinity, max = -Infinity;
-    ranges.forEach(range => {
-        const { rowsByColumn } = buildAxis(rows, range);
+    ranges.forEach(rg => {
+        const { rowsByColumn } = buildAxis(rows, rg);
         rowsByColumn.forEach(r => {
             if (!r) return;
             for (let rank = 1; rank <= 3; rank++) {
@@ -906,7 +966,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
 
     let yAxisOpt;
     if (autoY) {
-        const { min, max } = calcScoreYRange(rows, mode);
+        const { min, max } = calcScoreYRange(rows, mode, range);
         yAxisOpt = {
             type: 'value',
             min: min,
@@ -1039,6 +1099,29 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         ).join('');
     }
 
+    // ===== 改动：TOP1/2/3 的 10dDelta 固定 0–1；10d0 保持 0–100 =====
+    let yAxisOpt;
+    if (mode === 'weekly' && range === '10dDelta') {
+        yAxisOpt = {
+            type: 'value',
+            min: 0,
+            max: 1,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        };
+    } else {
+        yAxisOpt = {
+            type: 'value',
+            min: 0,
+            max: 100,
+            interval: 20,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        };
+    }
+
     chartInst.hideLoading();
     chartInst.setOption({
         tooltip: {
@@ -1080,15 +1163,7 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
             },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
         },
-        yAxis: {
-            type: 'value',
-            min: 0,
-            max: 100,
-            interval: 20,
-            axisLabel: { fontSize: 10, color: '#888' },
-            axisLine: { lineStyle: { color: '#f0d6e4' } },
-            splitLine: { lineStyle: { color: '#faf0f6' } },
-        },
+        yAxis: yAxisOpt,
         series: series,
     }, true);
     chartInst.resize();
