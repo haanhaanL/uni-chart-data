@@ -781,7 +781,7 @@ function buildAxis(rows, range) {
             fullTimes.push(label + '（次日00:06）');
         }
     } else if (range === '7dDelta') {
-        // 近七日涨幅：当天 06:06 得分 − 次日 00:06 得分
+        // 近七日涨幅：次日 00:06 得分 − 当天 06:06 得分
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         allSorted.forEach(r => {
@@ -953,7 +953,6 @@ function calcScoreYRange(rows, mode, range) {
             return { min: 94, max: 100 };
         }
         if (range === '7dDelta') {
-            // 涨幅自适应，约 6 个刻度
             const { rowsByColumn } = buildAxis(rows, range);
             let min = Infinity, max = -Infinity;
             rowsByColumn.forEach(r => {
@@ -972,10 +971,10 @@ function calcScoreYRange(rows, mode, range) {
             min = min - pad;
             max = max + pad;
             if (max <= min) max = min + 0.5;
-            // 尽量凑成约 6 个刻度
             const span = max - min;
             const step = span / 5;
-            const niceStep = Math.pow(10, Math.floor(Math.log10(step))) * Math.ceil(step / Math.pow(10, Math.floor(Math.log10(step))));
+            const pow = Math.pow(10, Math.floor(Math.log10(step)));
+            const niceStep = pow * Math.ceil(step / pow);
             min = Math.floor(min / niceStep) * niceStep;
             max = Math.ceil(max / niceStep) * niceStep;
             return { min, max, interval: niceStep };
@@ -1076,7 +1075,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
         data: songSeriesData(key),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 6,   // 圆点调大
+        symbolSize: 6,
         connectNulls: false,
         itemStyle: { color: songColorMap[key] },
         lineStyle: { width: 2, color: songColorMap[key] },
@@ -1131,9 +1130,12 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                     : fullLabel + (r ? '' : '（无数据）');
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
                 if (r) {
-                    params.forEach(p => {
-                        if (p.value === null || p.value === undefined) return;
+                    // 按总分从高到低排序
+                    const sorted = params
+                        .filter(p => p.value !== null && p.value !== undefined)
+                        .sort((a, b) => b.value - a.value);
 
+                    sorted.forEach(p => {
                         let deltaRaw = '';
                         for (let rank = 1; rank <= 3; rank++) {
                             if (songKey(r, rank) === p.seriesName) {
@@ -1208,7 +1210,7 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         }),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 6,   // 圆点调大
+        symbolSize: 6,
         connectNulls: false,
         itemStyle: { color: f.color },
         lineStyle: { width: 2, color: f.color },
