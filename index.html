@@ -160,11 +160,19 @@
     .up { color: #e74c3c; font-weight: bold; }
     .flat, .down { color: #999; font-weight: bold; }
 
-    /* 日榜：总分 / 增幅 列用 justify 撑开 */
+    /* 日榜：总分 / 增幅 列用 justify 撑开，并加左右间距 */
     .daily-score-delta-cell {
         text-align: justify;
         text-align-last: justify;
         white-space: nowrap;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    /* 周榜：总分 / 差值 列加左右间距 */
+    .weekly-score-delta-cell {
+        padding-left: 12px;
+        padding-right: 12px;
     }
 
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
@@ -442,35 +450,59 @@ function getSongKey(r, rank) {
     return singer ? `${singer}-${name}` : name;
 }
 
-function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
+/**
+ * 周榜差值：该歌当前展示条得分 − 该歌当天最早出现那条的得分
+ * 展示条：优先次日 00:06，缺失时用当天最后一条
+ */
+function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap) {
     const next0006 = rowByKey[`${nextKey} 00:06`];
-    const cur0606 = rowByKey[`${dayKey} 06:06`];
 
     const dayList = (dayRowsMap[dayKey] || []).slice().sort(
         (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
     );
-    const first = dayList[0];
     const last = dayList[dayList.length - 1];
+
+    const displayRow = next0006 || last || null;
 
     const delta = {};
     for (let rank = 1; rank <= 3; rank++) {
-        let s1 = next0006 ? parseFloat(next0006[`第${rank}名得分`]) : NaN;
-        let s0 = cur0606 ? parseFloat(cur0606[`第${rank}名得分`]) : NaN;
-
-        if (!isNaN(s1) && !isNaN(s0)) {
-            delta[rank] = s1 - s0;
+        if (!displayRow) {
+            delta[rank] = null;
             continue;
         }
 
-        const f0 = first ? parseFloat(first[`第${rank}名得分`]) : NaN;
-        const f1 = last ? parseFloat(last[`第${rank}名得分`]) : NaN;
-        delta[rank] = (!isNaN(f0) && !isNaN(f1)) ? (f1 - f0) : null;
+        const curScore = parseFloat(displayRow[`第${rank}名得分`]);
+        const curKey = getSongKey(displayRow, rank);
+
+        if (isNaN(curScore) || !curKey) {
+            delta[rank] = null;
+            continue;
+        }
+
+        let firstScore = NaN;
+        for (const r of dayList) {
+            let hit = false;
+            for (let rk = 1; rk <= 3; rk++) {
+                if (getSongKey(r, rk) === curKey) {
+                    firstScore = parseFloat(r[`第${rk}名得分`]);
+                    hit = true;
+                    break;
+                }
+            }
+            if (hit) break;
+        }
+
+        delta[rank] = !isNaN(firstScore) ? (curScore - firstScore) : null;
     }
 
-    const displayRow = next0006 || last || null;
     return { delta, displayRow };
 }
 
+/**
+ * 日榜增幅：
+ * - 06:06 用官方增幅
+ * - 其他：上一条同排名同曲 → 差值；否则上一条前三里找同曲 → 差值；否则 null
+ */
 function calcDailyDeltaList(rows) {
     const today = getTodayDateForDaily();
     const start = new Date(today);
@@ -618,7 +650,7 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
         nextDay.setDate(nextDay.getDate() + 1);
         const nextKey = fmtDateKey(nextDay);
 
-        const { delta, displayRow } = calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap);
+        const { delta, displayRow } = calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap);
         if (!displayRow) continue;
 
         daySummaries.push({ day: d, row: displayRow, delta });
@@ -650,7 +682,7 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
             }
 
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
-            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
+            cells.push(`<td class="weekly-score-delta-cell"><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     });
@@ -849,7 +881,7 @@ function buildAxis(rows, range) {
             nextDay.setDate(nextDay.getDate() + 1);
             const nextKey = fmtDateKey(nextDay);
 
-            const { delta, displayRow } = calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap);
+            const { delta, displayRow } = calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap);
 
             if (displayRow) {
                 const rowCopy = { ...displayRow };
@@ -876,10 +908,6 @@ function buildAxis(rows, range) {
             }
         });
 
-        const today = getTodayDateForDaily();
-        const nextDay = new Date(today);
-        nextDay.setDate(nextDay.getDate() + 1);
-
         for (let h = 6; h <= 23; h++) {
             const hhmm = `${String(h).padStart(2, '0')}:06`;
             const hit = mapByHHMM[hhmm];
@@ -894,7 +922,6 @@ function buildAxis(rows, range) {
             fullTimes.push(hhmm);
         }
 
-        // 次日 00:06
         const hhmm0 = '00:06';
         const hit0 = mapByHHMM[hhmm0];
         if (hit0) {
@@ -1469,4 +1496,4 @@ window.addEventListener('resize', function() {
 });
 </script>
 </body>
-</html> 
+</html>
