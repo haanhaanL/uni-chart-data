@@ -160,21 +160,6 @@
     .up { color: #e74c3c; font-weight: bold; }
     .flat, .down { color: #999; font-weight: bold; }
 
-    /* 日榜：总分 / 增幅 列用 justify 撑开，并加左右间距 */
-    .daily-score-delta-cell {
-        text-align: justify;
-        text-align-last: justify;
-        white-space: nowrap;
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
-    /* 周榜：总分 / 差值 列加左右间距 */
-    .weekly-score-delta-cell {
-        padding-left: 12px;
-        padding-right: 12px;
-    }
-
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 
     .range-tabs {
@@ -450,10 +435,6 @@ function getSongKey(r, rank) {
     return singer ? `${singer}-${name}` : name;
 }
 
-/**
- * 周榜差值：该歌当前展示条得分 − 该歌当天最早出现那条的得分
- * 展示条：优先次日 00:06，缺失时用当天最后一条
- */
 function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap) {
     const next0006 = rowByKey[`${nextKey} 00:06`];
 
@@ -498,11 +479,6 @@ function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap) {
     return { delta, displayRow };
 }
 
-/**
- * 日榜增幅：
- * - 06:06 用官方增幅
- * - 其他：上一条同排名同曲 → 差值；否则上一条前三里找同曲 → 差值；否则 null
- */
 function calcDailyDeltaList(rows) {
     const today = getTodayDateForDaily();
     const start = new Date(today);
@@ -597,7 +573,7 @@ function renderDailyRecentTable(rows, tbodyId) {
             }
 
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
-            cells.push(`<td class="daily-score-delta-cell"><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
+            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     });
@@ -682,7 +658,7 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
             }
 
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
-            cells.push(`<td class="weekly-score-delta-cell"><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
+            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     });
@@ -896,7 +872,6 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === 'today') {
-        // 日榜今日：横轴固定 06:06 ~ 次日 00:06
         const list = calcDailyDeltaList(rows);
         const mapByHHMM = {};
         list.forEach(({ row, deltas }) => {
@@ -934,7 +909,6 @@ function buildAxis(rows, range) {
         times.push(hhmm0);
         fullTimes.push(hhmm0);
     } else {
-        // 日榜 TOP 图默认范围：06:06 ~ 次日 00:06
         const baseDay = getTodayDateForDaily();
         const nextDay = new Date(baseDay);
         nextDay.setDate(nextDay.getDate() + 1);
@@ -1121,7 +1095,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
         data: songSeriesData(key),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 6,
+        symbolSize: 4,
         connectNulls: false,
         itemStyle: { color: songColorMap[key] },
         lineStyle: { width: 2, color: songColorMap[key] },
@@ -1290,7 +1264,7 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         }),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 6,
+        symbolSize: 4,
         connectNulls: false,
         itemStyle: { color: f.color },
         lineStyle: { width: 2, color: f.color },
