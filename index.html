@@ -252,7 +252,6 @@
                         <div class="title">周榜 · 总分</div>
                         <div class="range-tabs" data-chart="weeklyScore">
                             <button class="range-btn active" data-range="10d0">近十天总分</button>
-                            <button class="range-btn" data-range="10dDelta">近十天涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
@@ -327,7 +326,6 @@
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="today">今日</button>
                             <button class="range-btn" data-range="7d0">近7日</button>
-                            <button class="range-btn" data-range="7dDelta">近七日涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
@@ -433,6 +431,17 @@ function refreshDailyTopDate() {
     if (el) el.textContent = fmtDateLabel(getTodayDateForDaily());
 }
 
+function getSongKey(r, rank) {
+    const name = r[`第${rank}名歌名`] || '';
+    const singer = r[`第${rank}名歌手`] || '';
+    if (!name) return '';
+    return singer ? `${singer}-${name}` : name;
+}
+
+/**
+ * 周榜每天的增幅（表格与图表共用）
+ * 优先次日 00:06 − 当天 06:06；缺失时回退当天最后一条 − 当天第一条
+ */
 function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
     const next0006 = rowByKey[`${nextKey} 00:06`];
     const cur0606 = rowByKey[`${dayKey} 06:06`];
@@ -462,73 +471,12 @@ function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
     return { delta, displayRow };
 }
 
-function calc7dDeltaNear(dayKey, nextKey, rowByKey, allSorted) {
-    const startBase = new Date(dayKey + 'T06:06:00').getTime();
-    const endBase = new Date(nextKey + 'T00:06:00').getTime();
-
-    let startRow = rowByKey[`${dayKey} 06:06`];
-    if (!startRow) {
-        for (const r of allSorted) {
-            const t = parseTime(r['时间']);
-            if (!t) continue;
-            if (t.getTime() >= startBase) {
-                startRow = r;
-                break;
-            }
-        }
-    }
-
-    let endRow = rowByKey[`${nextKey} 00:06`];
-    if (!endRow) {
-        for (const r of allSorted) {
-            const t = parseTime(r['时间']);
-            if (!t) continue;
-            if (t.getTime() <= endBase) {
-                endRow = r;
-            }
-        }
-    }
-
-    if (!startRow || !endRow) {
-        return { deltaRow: null, startLabel: '', endLabel: '' };
-    }
-
-    const ts0 = parseTime(startRow['时间']);
-    const ts1 = parseTime(endRow['时间']);
-    if (!ts0 || !ts1 || ts1.getTime() <= ts0.getTime()) {
-        return { deltaRow: null, startLabel: startRow['时间'] || '', endLabel: endRow['时间'] || '' };
-    }
-
-    const deltaRow = {};
-    for (let rank = 1; rank <= 3; rank++) {
-        const s0 = parseFloat(startRow[`第${rank}名得分`]);
-        const s1 = parseFloat(endRow[`第${rank}名得分`]);
-        if (!isNaN(s0) && !isNaN(s1)) {
-            deltaRow[`第${rank}名得分`] = String((s1 - s0).toFixed(2));
-            deltaRow[`第${rank}名歌名`] = endRow[`第${rank}名歌名`];
-            deltaRow[`第${rank}名歌手`] = endRow[`第${rank}名歌手`];
-            deltaRow[`第${rank}名官方增幅`] = endRow[`第${rank}名官方增幅`];
-        }
-    }
-
-    return {
-        deltaRow,
-        startLabel: startRow['时间'] || '',
-        endLabel: endRow['时间'] || ''
-    };
-}
-
 /**
- * 日榜表格：当日最近 10 条（06:06 ~ 次日 00:06）
- * 增幅改为“当前条得分 − 上一条得分”，自行计算。
+ * 日榜每条的增幅（表格与图表共用）
+ * - 06:06 用官方增幅
+ * - 其他：上一条同排名同曲 → 差值；否则上一条前三里找同曲 → 差值；否则 null
  */
-function renderDailyRecentTable(rows, tbodyId) {
-    const tbody = document.getElementById(tbodyId);
-    if (!rows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
-        return;
-    }
-
+function calcDailyDeltaList(rows) {
     const today = getTodayDateForDaily();
     const start = new Date(today);
     start.setHours(6, 6, 0, 0);
@@ -537,9 +485,7 @@ function renderDailyRecentTable(rows, tbodyId) {
     const end = new Date(nextDay);
     end.setHours(0, 6, 0, 0);
 
-    // 先按时间正序，方便算相邻差值
     const sortedAsc = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
-
     const inRange = [];
     sortedAsc.forEach(r => {
         const t = parseTime(r['时间']);
@@ -551,42 +497,75 @@ function renderDailyRecentTable(rows, tbodyId) {
         inRange.push(r);
     });
 
-    if (!inRange.length) {
+    return inRange.map((r, idx) => {
+        const t = parseTime(r['时间']);
+        const isDayStart = t && t.getHours() === 6 && t.getMinutes() === 6;
+        const prev = idx > 0 ? inRange[idx - 1] : null;
+
+        const deltas = {};
+        for (let rank = 1; rank <= 3; rank++) {
+            const curKey = getSongKey(r, rank);
+            const curScore = parseFloat(r[`第${rank}名得分`]);
+            let deltaVal = null;
+
+            if (isDayStart) {
+                const raw = r[`第${rank}名官方增幅`] || '';
+                if (raw !== '') {
+                    const fv = parseFloat(raw);
+                    if (!isNaN(fv)) deltaVal = fv;
+                }
+            } else if (prev) {
+                if (getSongKey(prev, rank) === curKey && !isNaN(curScore)) {
+                    const preScore = parseFloat(prev[`第${rank}名得分`]);
+                    if (!isNaN(preScore)) deltaVal = curScore - preScore;
+                } else {
+                    for (let rk = 1; rk <= 3; rk++) {
+                        if (getSongKey(prev, rk) === curKey) {
+                            const preScore = parseFloat(prev[`第${rk}名得分`]);
+                            if (!isNaN(curScore) && !isNaN(preScore)) {
+                                deltaVal = curScore - preScore;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+            deltas[rank] = deltaVal;
+        }
+        return { row: r, deltas };
+    });
+}
+
+/**
+ * 日榜表格
+ */
+function renderDailyRecentTable(rows, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
         return;
     }
 
-    // 逐条算相邻差值
-    const withDelta = inRange.map((r, idx) => {
-        const prev = idx > 0 ? inRange[idx - 1] : null;
-        const deltas = [];
-        for (let rank = 1; rank <= 3; rank++) {
-            const cur = parseFloat(r[`第${rank}名得分`]);
-            const pre = prev ? parseFloat(prev[`第${rank}名得分`]) : NaN;
-            if (!isNaN(cur) && !isNaN(pre)) {
-                deltas.push(cur - pre);
-            } else {
-                deltas.push(null);
-            }
-        }
-        return { row: r, deltas };
-    });
+    const list = calcDailyDeltaList(rows);
+    if (!list.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
 
-    // 取最近 10 条，倒序显示
-    const recent = withDelta.slice(-10).reverse();
+    const recent = list.slice(-10).reverse();
 
     const htmlRows = recent.map(({ row: r, deltas }) => {
         const displayTime = stripYear(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
-        for (let i = 1; i <= 3; i++) {
-            const name = r[`第${i}名歌名`] || '';
-            const singer = r[`第${i}名歌手`] || '';
+        for (let rank = 1; rank <= 3; rank++) {
+            const name = r[`第${rank}名歌名`] || '';
+            const singer = r[`第${rank}名歌手`] || '';
             const song = singer ? `${name}-${singer}` : name;
-            const score = r[`第${i}名得分`] || '';
+            const score = r[`第${rank}名得分`] || '';
 
-            let changeText = '';
+            let changeText = '-';
             let cls = '';
-            const d = deltas[i - 1];
+            const d = deltas[rank];
             if (d !== null && !isNaN(d)) {
                 const fixed = d.toFixed(2);
                 changeText = (d > 0 ? '+' : '') + fixed;
@@ -612,6 +591,9 @@ function renderDailyRecentTable(rows, tbodyId) {
     tbody.innerHTML = htmlRows.join('');
 }
 
+/**
+ * 周榜表格
+ */
 function renderWeeklyTenDayTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -663,15 +645,15 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
     const htmlRows = daySummaries.map(({ day, row: r, delta }) => {
         const dateLabel = `${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
         const cells = [`<td>${dateLabel}</td>`];
-        for (let i = 1; i <= 3; i++) {
-            const name = r[`第${i}名歌名`] || '';
-            const singer = r[`第${i}名歌手`] || '';
+        for (let rank = 1; rank <= 3; rank++) {
+            const name = r[`第${rank}名歌名`] || '';
+            const singer = r[`第${rank}名歌手`] || '';
             const song = singer ? `${name}-${singer}` : name;
-            const score = r[`第${i}名得分`] || '';
+            const score = r[`第${rank}名得分`] || '';
 
             let changeText = '';
             let cls = '';
-            const d = delta[i];
+            const d = delta[rank];
             if (d !== null && !isNaN(d)) {
                 const fixed = d.toFixed(2);
                 changeText = (d > 0 ? '+' : '') + fixed;
@@ -851,86 +833,9 @@ function buildAxis(rows, range) {
             times.push(label);
             fullTimes.push(label);
         }
-    } else if (range === '7dDelta') {
-        const effectiveToday = getTodayDateForDaily();
-        const rowByKey = {};
-        allSorted.forEach(r => {
-            const t = parseTime(r['时间']);
-            if (!t) return;
-            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-            rowByKey[key] = r;
-        });
-
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date(effectiveToday);
-            d.setDate(d.getDate() - i);
-            const dayKey = fmtDateKey(d);
-            const nextDay = new Date(d);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const nextKey = fmtDateKey(nextDay);
-
-            const { deltaRow, startLabel, endLabel } = calc7dDeltaNear(dayKey, nextKey, rowByKey, allSorted);
-
-            let finalRow = null;
-            if (deltaRow) {
-                finalRow = deltaRow;
-                finalRow.__startLabel = startLabel;
-                finalRow.__endLabel = endLabel;
-            }
-
-            rowsByColumn.push(finalRow);
-            const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            times.push(label);
-            fullTimes.push(label + ' 涨幅');
-        }
     } else if (range === '10d0') {
-        const effectiveToday = getTodayDateForDaily();
-        const rowByKey = {};
-        const dayRowsMap = {};
-        allSorted.forEach(r => {
-            const t = parseTime(r['时间']);
-            if (!t) return;
-            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-            rowByKey[key] = r;
-
-            const eff = new Date(t);
-            if (t.getHours() === 0 && t.getMinutes() < 10) {
-                eff.setDate(eff.getDate() - 1);
-            }
-            const dayKey = fmtDateKey(eff);
-            if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
-            dayRowsMap[dayKey].push(r);
-        });
-
-        for (let i = 9; i >= 0; i--) {
-            const d = new Date(effectiveToday);
-            d.setDate(d.getDate() - i);
-            const dayKey = fmtDateKey(d);
-            const nextDay = new Date(d);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const nextKey = fmtDateKey(nextDay);
-
-            const next0006 = rowByKey[`${nextKey} 00:06`];
-            let displayRow = next0006;
-            if (!displayRow) {
-                const list = (dayRowsMap[dayKey] || []).slice().sort(
-                    (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
-                );
-                displayRow = list[list.length - 1] || null;
-            }
-
-            if (displayRow) {
-                const rowCopy = { ...displayRow };
-                rowCopy.__actualLabel = displayRow['时间'] || '';
-                rowsByColumn.push(rowCopy);
-            } else {
-                rowsByColumn.push(null);
-            }
-            const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            times.push(label);
-            fullTimes.push(label);
-        }
-    } else if (range === '10dDelta') {
+        // 周榜近十天总分：每天取次日 00:06，缺失时退回当天最后一条
+        // 每行挂 __tableDelta，与周榜表格的增幅一致
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         const dayRowsMap = {};
@@ -959,25 +864,34 @@ function buildAxis(rows, range) {
 
             const { delta, displayRow } = calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap);
 
-            let deltaRow = null;
             if (displayRow) {
-                deltaRow = {};
-                for (let rank = 1; rank <= 3; rank++) {
-                    const val = delta[rank];
-                    if (val !== null && !isNaN(val)) {
-                        deltaRow[`第${rank}名得分`] = String(val.toFixed(2));
-                        deltaRow[`第${rank}名歌名`] = displayRow[`第${rank}名歌名`];
-                        deltaRow[`第${rank}名歌手`] = displayRow[`第${rank}名歌手`];
-                        deltaRow[`第${rank}名官方增幅`] = displayRow[`第${rank}名官方增幅`];
-                    }
-                }
+                const rowCopy = { ...displayRow };
+                rowCopy.__actualLabel = displayRow['时间'] || '';
+                rowCopy.__tableDelta = delta;
+                rowsByColumn.push(rowCopy);
+            } else {
+                rowsByColumn.push(null);
             }
-
-            rowsByColumn.push(deltaRow);
             const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             times.push(label);
-            fullTimes.push(label + ' 涨幅');
+            fullTimes.push(label);
         }
+    } else if (range === 'today') {
+        // 日榜今日：06:06 起，按时间正序
+        // 每行挂 __tableDelta，与日榜表格的增幅一致
+        const list = calcDailyDeltaList(rows);
+        list.forEach(({ row, deltas }) => {
+            const rowCopy = { ...row };
+            rowCopy.__tableDelta = deltas;
+            rowsByColumn.push(rowCopy);
+
+            const t = parseTime(row['时间']);
+            const label = t
+                ? `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`
+                : (row['时间'] || '');
+            times.push(label);
+            fullTimes.push(row['时间'] || '');
+        });
     } else {
         const baseDay = getTodayDateForDaily();
         const nextDay = new Date(baseDay);
@@ -1023,9 +937,6 @@ function calcScoreYRange(rows, mode, range) {
             if (lo > 95) lo = 95;
             return { min: lo, max: 100 };
         }
-        if (range === '10dDelta') {
-            return { min: 0, max: 20 };
-        }
     }
 
     if (mode === 'daily') {
@@ -1049,27 +960,6 @@ function calcScoreYRange(rows, mode, range) {
             let hi = Math.ceil((max + pad) / 5) * 5;
             if (hi <= lo) hi = lo + 5;
             return { min: lo, max: hi };
-        }
-        if (range === '7dDelta') {
-            const { rowsByColumn } = buildAxis(rows, range);
-            let max = -Infinity;
-            rowsByColumn.forEach(r => {
-                if (!r) return;
-                for (let rank = 1; rank <= 3; rank++) {
-                    const s = r[`第${rank}名得分`] || '';
-                    const v = parseFloat(s);
-                    if (!isNaN(v) && v > max) max = v;
-                }
-            });
-            if (!isFinite(max)) return { min: 0, max: 1 };
-            const pad = Math.max(max * 0.08, 0.1);
-            let top = max + pad;
-            if (top <= 0) top = 0.5;
-            const step = top / 5;
-            const pow = Math.pow(10, Math.floor(Math.log10(step)));
-            const niceStep = pow * Math.ceil(step / pow);
-            const niceMax = Math.ceil(top / niceStep) * niceStep;
-            return { min: 0, max: niceMax, interval: niceStep };
         }
         if (range === 'today') {
             const { rowsByColumn } = buildAxis(rows, range);
@@ -1097,7 +987,7 @@ function calcScoreYRange(rows, mode, range) {
 
     let ranges;
     if (mode === 'weekly') {
-        ranges = ['10d0', '10dDelta'];
+        ranges = ['10d0'];
     } else {
         ranges = [range || 'today'];
     }
@@ -1245,11 +1135,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
 
                 if (r) {
-                    if (range === '7dDelta' && r.__startLabel && r.__endLabel) {
-                        html += `<div style="font-size:11px;color:#999;margin-bottom:2px;">`
-                              + `起点：${r.__startLabel}　终点：${r.__endLabel}`
-                              + `</div>`;
-                    }
                     if ((range === '7d0' || range === '10d0') && r.__actualLabel) {
                         html += `<div style="font-size:11px;color:#999;margin-bottom:2px;">`
                               + `实际：${r.__actualLabel}`
@@ -1260,14 +1145,8 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                         .filter(p => p.value !== null && p.value !== undefined)
                         .sort((a, b) => b.value - a.value);
 
-                    // 日榜今日：用相邻两点的得分差作为增值
-                    let prevRow = null;
-                    if (mode === 'daily' && range === 'today' && i > 0) {
-                        prevRow = rowsByColumn[i - 1] || null;
-                    }
-
-                    // 日榜近7日 / 近七日涨幅：不显示增值列
-                    const hideDelta = (mode === 'daily' && (range === '7d0' || range === '7dDelta'));
+                    const useTableDelta = (r.__tableDelta !== undefined && r.__tableDelta !== null);
+                    const hideDelta = (mode === 'daily' && range === '7d0');
 
                     sorted.forEach(p => {
                         let text = '';
@@ -1275,38 +1154,38 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
 
                         if (!hideDelta) {
                             let deltaVal = null;
-                            for (let rank = 1; rank <= 3; rank++) {
-                                if (songKey(r, rank) === p.seriesName) {
-                                    if (mode === 'daily' && range === 'today') {
-                                        // 自算：当前条得分 − 上一条同排名歌曲得分
-                                        const curScore = parseFloat(r[`第${rank}名得分`]);
-                                        let preScore = NaN;
-                                        if (prevRow) {
-                                            for (let rk = 1; rk <= 3; rk++) {
-                                                if (songKey(prevRow, rk) === p.seriesName) {
-                                                    preScore = parseFloat(prevRow[`第${rk}名得分`]);
-                                                    break;
-                                                }
-                                            }
+
+                            if (useTableDelta) {
+                                for (let rank = 1; rank <= 3; rank++) {
+                                    if (songKey(r, rank) === p.seriesName) {
+                                        const d = r.__tableDelta[rank];
+                                        if (d !== null && d !== undefined && !isNaN(d)) {
+                                            deltaVal = d;
                                         }
-                                        if (!isNaN(curScore) && !isNaN(preScore)) {
-                                            deltaVal = curScore - preScore;
-                                        }
-                                    } else if (!(mode === 'weekly' && range === '10dDelta')) {
-                                        // 其他情况沿用官方增幅
-                                        const raw = r[`第${rank}名官方增幅`] || '';
-                                        if (raw !== '') {
-                                            const fv = parseFloat(raw);
-                                            if (!isNaN(fv)) deltaVal = fv;
-                                        }
+                                        break;
                                     }
-                                    break;
                                 }
                             }
 
                             if (deltaVal !== null && !isNaN(deltaVal)) {
                                 text = (deltaVal > 0 ? '+' : '') + deltaVal.toFixed(2);
                                 color = deltaVal > 0 ? '#ea3690' : '#999';
+                            } else if (!useTableDelta) {
+                                // 兜底：官方增幅
+                                for (let rank = 1; rank <= 3; rank++) {
+                                    if (songKey(r, rank) === p.seriesName) {
+                                        const raw = r[`第${rank}名官方增幅`] || '';
+                                        if (raw !== '') {
+                                            const fv = parseFloat(raw);
+                                            if (!isNaN(fv)) {
+                                                deltaVal = fv;
+                                                text = (fv > 0 ? '+' : '') + raw;
+                                                color = fv > 0 ? '#ea3690' : '#999';
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
                             }
                         }
 
