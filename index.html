@@ -160,6 +160,31 @@
     .up { color: #e74c3c; font-weight: bold; }
     .flat, .down { color: #999; font-weight: bold; }
 
+    /* 日榜：总分 / 增幅 左右对齐 */
+    .daily-score-delta {
+        display: inline-flex;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 2px;
+        width: 100%;
+    }
+    .daily-score-delta .score-part {
+        flex: 1 1 auto;
+        text-align: right;
+        font-weight: bold;
+        color: #333;
+    }
+    .daily-score-delta .sep {
+        flex: 0 0 auto;
+        color: #999;
+        padding: 0 1px;
+    }
+    .daily-score-delta .delta-part {
+        flex: 1 1 auto;
+        text-align: right;
+        white-space: nowrap;
+    }
+
     #loading { text-align: center; color: #999; font-size: 16px; margin-top: 50px; }
 
     .range-tabs {
@@ -237,9 +262,9 @@
                                         <th colspan="2">3</th>
                                     </tr>
                                     <tr>
-                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
-                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
-                                        <th>歌名-歌手</th><th>总分 / 增幅</th>
+                                        <th>歌名-歌手</th><th>总分 / 差值</th>
+                                        <th>歌名-歌手</th><th>总分 / 差值</th>
+                                        <th>歌名-歌手</th><th>总分 / 差值</th>
                                     </tr>
                                 </thead>
                                 <tbody id="weeklyTableBody"></tbody>
@@ -249,10 +274,8 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">周榜 · 总分</div>
-                        <div class="range-tabs" data-chart="weeklyScore">
-                            <button class="range-btn active" data-range="10d0">近十天总分</button>
-                        </div>
+                        <!-- 标题直接改为近十天总分，去掉 tab -->
+                        <div class="title">近十天总分</div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
                     </div>
@@ -438,10 +461,6 @@ function getSongKey(r, rank) {
     return singer ? `${singer}-${name}` : name;
 }
 
-/**
- * 周榜每天的增幅（表格与图表共用）
- * 优先次日 00:06 − 当天 06:06；缺失时回退当天最后一条 − 当天第一条
- */
 function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
     const next0006 = rowByKey[`${nextKey} 00:06`];
     const cur0606 = rowByKey[`${dayKey} 06:06`];
@@ -471,11 +490,6 @@ function calcDayDeltaWithFallback(dayKey, nextKey, rowByKey, dayRowsMap) {
     return { delta, displayRow };
 }
 
-/**
- * 日榜每条的增幅（表格与图表共用）
- * - 06:06 用官方增幅
- * - 其他：上一条同排名同曲 → 差值；否则上一条前三里找同曲 → 差值；否则 null
- */
 function calcDailyDeltaList(rows) {
     const today = getTodayDateForDaily();
     const start = new Date(today);
@@ -536,9 +550,6 @@ function calcDailyDeltaList(rows) {
     });
 }
 
-/**
- * 日榜表格
- */
 function renderDailyRecentTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -573,7 +584,13 @@ function renderDailyRecentTable(rows, tbodyId) {
             }
 
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
-            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
+            cells.push(`<td>
+                <span class="daily-score-delta">
+                    <span class="score-part">${score}</span>
+                    <span class="sep">/</span>
+                    <span class="delta-part ${cls}">${changeText}</span>
+                </span>
+            </td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     });
@@ -591,9 +608,6 @@ function renderDailyRecentTable(rows, tbodyId) {
     tbody.innerHTML = htmlRows.join('');
 }
 
-/**
- * 周榜表格
- */
 function renderWeeklyTenDayTable(rows, tbodyId) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -834,8 +848,6 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === '10d0') {
-        // 周榜近十天总分：每天取次日 00:06，缺失时退回当天最后一条
-        // 每行挂 __tableDelta，与周榜表格的增幅一致
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         const dayRowsMap = {};
@@ -877,8 +889,6 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === 'today') {
-        // 日榜今日：06:06 起，按时间正序
-        // 每行挂 __tableDelta，与日榜表格的增幅一致
         const list = calcDailyDeltaList(rows);
         list.forEach(({ row, deltas }) => {
             const rowCopy = { ...row };
@@ -1171,7 +1181,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                                 text = (deltaVal > 0 ? '+' : '') + deltaVal.toFixed(2);
                                 color = deltaVal > 0 ? '#ea3690' : '#999';
                             } else if (!useTableDelta) {
-                                // 兜底：官方增幅
                                 for (let rank = 1; rank <= 3; rank++) {
                                     if (songKey(r, rank) === p.seriesName) {
                                         const raw = r[`第${rank}名官方增幅`] || '';
