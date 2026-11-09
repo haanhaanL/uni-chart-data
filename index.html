@@ -490,7 +490,9 @@ function renderRecentTable(rows, tbodyId, sameDayOnly) {
         filtered = filtered.filter(r => {
             const t = parseTime(r['时间']);
             if (!t) return false;
-            return fmtDateKey(t) === todayKey;
+            if (fmtDateKey(t) !== todayKey) return false;
+            // 只保留 06:06 及之后的记录
+            return t.getHours() > 6 || (t.getHours() === 6 && t.getMinutes() >= 6);
         });
     }
 
