@@ -160,28 +160,10 @@
     .up { color: #e74c3c; font-weight: bold; }
     .flat, .down { color: #999; font-weight: bold; }
 
-    /* 日榜：总分 / 增幅 左右对齐 */
-    .daily-score-delta {
-        display: inline-flex;
-        align-items: baseline;
-        justify-content: flex-end;
-        gap: 2px;
-        width: 100%;
-    }
-    .daily-score-delta .score-part {
-        flex: 1 1 auto;
-        text-align: right;
-        font-weight: bold;
-        color: #333;
-    }
-    .daily-score-delta .sep {
-        flex: 0 0 auto;
-        color: #999;
-        padding: 0 1px;
-    }
-    .daily-score-delta .delta-part {
-        flex: 1 1 auto;
-        text-align: right;
+    /* 日榜：总分 / 增幅 列用 justify 撑开 */
+    .daily-score-delta-cell {
+        text-align: justify;
+        text-align-last: justify;
         white-space: nowrap;
     }
 
@@ -274,8 +256,7 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <!-- 标题直接改为近十天总分，去掉 tab -->
-                        <div class="title">近十天总分</div>
+                        <div class="title">周榜 · 近十天总分</div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
                     </div>
@@ -584,13 +565,7 @@ function renderDailyRecentTable(rows, tbodyId) {
             }
 
             cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
-            cells.push(`<td>
-                <span class="daily-score-delta">
-                    <span class="score-part">${score}</span>
-                    <span class="sep">/</span>
-                    <span class="delta-part ${cls}">${changeText}</span>
-                </span>
-            </td>`);
+            cells.push(`<td class="daily-score-delta-cell"><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
         }
         return `<tr>${cells.join('')}</tr>`;
     });
@@ -889,20 +864,50 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === 'today') {
+        // 日榜今日：横轴固定 06:06 ~ 次日 00:06
         const list = calcDailyDeltaList(rows);
+        const mapByHHMM = {};
         list.forEach(({ row, deltas }) => {
-            const rowCopy = { ...row };
-            rowCopy.__tableDelta = deltas;
-            rowsByColumn.push(rowCopy);
-
             const t = parseTime(row['时间']);
-            const label = t
-                ? `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`
-                : (row['时间'] || '');
-            times.push(label);
-            fullTimes.push(row['时间'] || '');
+            if (!t) return;
+            const hhmm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            if (!mapByHHMM[hhmm]) {
+                mapByHHMM[hhmm] = { row, deltas };
+            }
         });
+
+        const today = getTodayDateForDaily();
+        const nextDay = new Date(today);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        for (let h = 6; h <= 23; h++) {
+            const hhmm = `${String(h).padStart(2, '0')}:06`;
+            const hit = mapByHHMM[hhmm];
+            if (hit) {
+                const rowCopy = { ...hit.row };
+                rowCopy.__tableDelta = hit.deltas;
+                rowsByColumn.push(rowCopy);
+            } else {
+                rowsByColumn.push(null);
+            }
+            times.push(hhmm);
+            fullTimes.push(hhmm);
+        }
+
+        // 次日 00:06
+        const hhmm0 = '00:06';
+        const hit0 = mapByHHMM[hhmm0];
+        if (hit0) {
+            const rowCopy = { ...hit0.row };
+            rowCopy.__tableDelta = hit0.deltas;
+            rowsByColumn.push(rowCopy);
+        } else {
+            rowsByColumn.push(null);
+        }
+        times.push(hhmm0);
+        fullTimes.push(hhmm0);
     } else {
+        // 日榜 TOP 图默认范围：06:06 ~ 次日 00:06
         const baseDay = getTodayDateForDaily();
         const nextDay = new Date(baseDay);
         nextDay.setDate(nextDay.getDate() + 1);
@@ -920,10 +925,10 @@ function buildAxis(rows, range) {
             times.push(label);
             fullTimes.push(label);
         }
-        const key24 = `${fmtDateKey(nextDay)} 00:16`;
-        rowsByColumn.push(rowByKey[key24] || null);
-        times.push('24:00');
-        fullTimes.push('24:00');
+        const key0 = `${fmtDateKey(nextDay)} 00:06`;
+        rowsByColumn.push(rowByKey[key0] || null);
+        times.push('00:06');
+        fullTimes.push('00:06');
     }
 
     return { rowsByColumn, times, fullTimes };
@@ -1464,4 +1469,4 @@ window.addEventListener('resize', function() {
 });
 </script>
 </body>
-</html>
+</html> 
