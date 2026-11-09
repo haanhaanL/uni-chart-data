@@ -339,6 +339,7 @@
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="today">今日</button>
                             <button class="range-btn" data-range="7d0">近7日</button>
+                            <button class="range-btn" data-range="7dDelta">近七日涨幅</button>
                         </div>
                         <div class="chart-legend-text" id="dailyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartDaily"></div>
@@ -485,7 +486,6 @@ function renderRecentTable(rows, tbodyId, sameDayOnly) {
     let filtered = sorted;
 
     if (sameDayOnly) {
-        // 日榜表格：当天 06:06 ~ 次日 00:06（含）
         const today = getTodayDateForDaily();
 
         const start = new Date(today);
@@ -632,10 +632,6 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
     tbody.innerHTML = htmlRows.join('');
 }
 
-/**
- * 找某个日期「次日 00:06」的记录；如果没有，则从次日 00:06 往前找最近一条有数据的记录。
- * 只会在次日当天 00:00–00:06 内回溯；如果次日当天没有，再退回当天最后一条。
- */
 function findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey) {
     const exact = rowByKey[`${nextKey} 00:06`];
     if (exact) return exact;
@@ -752,7 +748,6 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === '7d0') {
-        // 日榜近7日：每天取次日 00:06；缺失时在次日 00:00–00:05 内往前找，再缺就退回当天最后一条
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         const dayRowsMap = {};
@@ -784,6 +779,48 @@ function buildAxis(rows, range) {
             const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             times.push(label);
             fullTimes.push(label + '（次日00:06）');
+        }
+    } else if (range === '7dDelta') {
+        // 近七日涨幅：当天 06:06 得分 − 次日 00:06 得分
+        const effectiveToday = getTodayDateForDaily();
+        const rowByKey = {};
+        allSorted.forEach(r => {
+            const t = parseTime(r['时间']);
+            if (!t) return;
+            const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+            rowByKey[key] = r;
+        });
+
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date(effectiveToday);
+            d.setDate(d.getDate() - i);
+            const dayKey = fmtDateKey(d);
+            const nextDay = new Date(d);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextKey = fmtDateKey(nextDay);
+
+            const cur0606 = rowByKey[`${dayKey} 06:06`];
+            const next0006 = rowByKey[`${nextKey} 00:06`];
+
+            let deltaRow = null;
+            if (cur0606 && next0006) {
+                deltaRow = {};
+                for (let rank = 1; rank <= 3; rank++) {
+                    const s0 = parseFloat(cur0606[`第${rank}名得分`]);
+                    const s1 = parseFloat(next0006[`第${rank}名得分`]);
+                    if (!isNaN(s0) && !isNaN(s1)) {
+                        deltaRow[`第${rank}名得分`] = String((s1 - s0).toFixed(2));
+                        deltaRow[`第${rank}名歌名`] = next0006[`第${rank}名歌名`];
+                        deltaRow[`第${rank}名歌手`] = next0006[`第${rank}名歌手`];
+                        deltaRow[`第${rank}名官方增幅`] = next0006[`第${rank}名官方增幅`];
+                    }
+                }
+            }
+
+            rowsByColumn.push(deltaRow);
+            const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            times.push(label);
+            fullTimes.push(label + ' 涨幅');
         }
     } else if (range === '10d0') {
         const effectiveToday = getTodayDateForDaily();
@@ -911,6 +948,40 @@ function calcScoreYRange(rows, mode, range) {
         }
     }
 
+    if (mode === 'daily') {
+        if (range === '7d0') {
+            return { min: 94, max: 100 };
+        }
+        if (range === '7dDelta') {
+            // 涨幅自适应，约 6 个刻度
+            const { rowsByColumn } = buildAxis(rows, range);
+            let min = Infinity, max = -Infinity;
+            rowsByColumn.forEach(r => {
+                if (!r) return;
+                for (let rank = 1; rank <= 3; rank++) {
+                    const s = r[`第${rank}名得分`] || '';
+                    const v = parseFloat(s);
+                    if (!isNaN(v)) {
+                        if (v < min) min = v;
+                        if (v > max) max = v;
+                    }
+                }
+            });
+            if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: undefined };
+            const pad = Math.max((max - min) * 0.08, 0.1);
+            min = min - pad;
+            max = max + pad;
+            if (max <= min) max = min + 0.5;
+            // 尽量凑成约 6 个刻度
+            const span = max - min;
+            const step = span / 5;
+            const niceStep = Math.pow(10, Math.floor(Math.log10(step))) * Math.ceil(step / Math.pow(10, Math.floor(Math.log10(step))));
+            min = Math.floor(min / niceStep) * niceStep;
+            max = Math.ceil(max / niceStep) * niceStep;
+            return { min, max, interval: niceStep };
+        }
+    }
+
     let ranges;
     if (mode === 'weekly') {
         ranges = ['10d0', '10dDelta'];
@@ -1005,7 +1076,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
         data: songSeriesData(key),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 3,
+        symbolSize: 6,   // 圆点调大
         connectNulls: false,
         itemStyle: { color: songColorMap[key] },
         lineStyle: { width: 2, color: songColorMap[key] },
@@ -1020,16 +1091,19 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
 
     let yAxisOpt;
     if (autoY) {
-        const { min, max } = calcScoreYRange(rows, mode, range);
+        const yr = calcScoreYRange(rows, mode, range);
         yAxisOpt = {
             type: 'value',
-            min: min,
-            max: max,
+            min: yr.min,
+            max: yr.max,
             minInterval: 1,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
         };
+        if (yr.interval) {
+            yAxisOpt.interval = yr.interval;
+        }
     } else {
         yAxisOpt = {
             type: 'value',
@@ -1134,7 +1208,7 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         }),
         smooth: false,
         symbol: 'circle',
-        symbolSize: 3,
+        symbolSize: 6,   // 圆点调大
         connectNulls: false,
         itemStyle: { color: f.color },
         lineStyle: { width: 2, color: f.color },
