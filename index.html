@@ -724,7 +724,6 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === '10d0') {
-        // 最近十天：每天取“次日 00:06”的数据；缺失时用当天最后一条
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         const dayRowsMap = {};
@@ -766,7 +765,6 @@ function buildAxis(rows, range) {
             fullTimes.push(label + '（次日00:06）');
         }
     } else if (range === '10dDelta') {
-        // 最近十天涨幅：优先「次日 00:06 − 当天 06:06」，缺失时回退「当天最后 − 当天第一」
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
         const dayRowsMap = {};
@@ -843,17 +841,16 @@ function buildAxis(rows, range) {
 
 /**
  * 周榜总分图 Y 轴：
- * - 10d0（近十天总分）：固定 90–100
- * - 10dDelta（近十天涨幅）：固定 0–1
- * 其他范围沿用自动范围
+ * - 10d0（近十天总分）：固定 80–100
+ * - 10dDelta（近十天涨幅）：固定 0–20
  */
 function calcScoreYRange(rows, mode, range) {
     if (mode === 'weekly') {
         if (range === '10d0') {
-            return { min: 90, max: 100 };
+            return { min: 80, max: 100 };
         }
         if (range === '10dDelta') {
-            return { min: 0, max: 1 };
+            return { min: 0, max: 20 };
         }
     }
 
@@ -1099,13 +1096,13 @@ function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
         ).join('');
     }
 
-    // ===== 改动：TOP1/2/3 的 10dDelta 固定 0–1；10d0 保持 0–100 =====
+    // ===== 改动：所有涨幅图固定 0–20；近十天总分保持 0–100 =====
     let yAxisOpt;
-    if (mode === 'weekly' && range === '10dDelta') {
+    if (range === '10dDelta') {
         yAxisOpt = {
             type: 'value',
             min: 0,
-            max: 1,
+            max: 20,
             axisLabel: { fontSize: 10, color: '#888' },
             axisLine: { lineStyle: { color: '#f0d6e4' } },
             splitLine: { lineStyle: { color: '#faf0f6' } },
