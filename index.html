@@ -336,7 +336,6 @@
                 <div class="score-chart-col">
                     <div class="card">
                         <div class="title">日榜 · 总分</div>
-                        <!-- 新增：日榜总分图 range tabs -->
                         <div class="range-tabs" data-chart="dailyScore">
                             <button class="range-btn active" data-range="today">今日</button>
                             <button class="range-btn" data-range="7d0">近7日</button>
@@ -486,11 +485,21 @@ function renderRecentTable(rows, tbodyId, sameDayOnly) {
     let filtered = sorted;
 
     if (sameDayOnly) {
-        const todayKey = fmtDateKey(getTodayDateForDaily());
+        // 日榜表格：当天 06:06 ~ 次日 00:06（含）
+        const today = getTodayDateForDaily();
+
+        const start = new Date(today);
+        start.setHours(6, 6, 0, 0);
+
+        const nextDay = new Date(today);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const end = new Date(nextDay);
+        end.setHours(0, 6, 0, 0);
+
         filtered = filtered.filter(r => {
             const t = parseTime(r['时间']);
             if (!t) return false;
-            return fmtDateKey(t) === todayKey;
+            return t.getTime() >= start.getTime() && t.getTime() <= end.getTime();
         });
     }
 
@@ -623,6 +632,25 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
     tbody.innerHTML = htmlRows.join('');
 }
 
+/**
+ * 找某个日期「次日 00:06」的记录；如果没有，则从次日 00:06 往前找最近一条有数据的记录。
+ * 只会在次日当天 00:00–00:06 内回溯；如果次日当天没有，再退回当天最后一条。
+ */
+function findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey) {
+    const exact = rowByKey[`${nextKey} 00:06`];
+    if (exact) return exact;
+
+    for (let mm = 5; mm >= 0; mm--) {
+        const k = `${nextKey} 00:${String(mm).padStart(2, '0')}`;
+        if (rowByKey[k]) return rowByKey[k];
+    }
+
+    const list = (dayRowsMap[dayKey] || []).slice().sort(
+        (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
+    );
+    return list[list.length - 1] || null;
+}
+
 function buildAxis(rows, range) {
     const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
     const now = new Date();
@@ -724,24 +752,35 @@ function buildAxis(rows, range) {
             fullTimes.push(label);
         }
     } else if (range === '7d0') {
-        // 近7日：每天取次日 00:06
+        // 日榜近7日：每天取次日 00:06；缺失时在次日 00:00–00:05 内往前找，再缺就退回当天最后一条
         const effectiveToday = getTodayDateForDaily();
         const rowByKey = {};
+        const dayRowsMap = {};
         allSorted.forEach(r => {
             const t = parseTime(r['时间']);
             if (!t) return;
             const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
             rowByKey[key] = r;
+
+            const eff = new Date(t);
+            if (t.getHours() === 0 && t.getMinutes() < 10) {
+                eff.setDate(eff.getDate() - 1);
+            }
+            const dayKey = fmtDateKey(eff);
+            if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+            dayRowsMap[dayKey].push(r);
         });
 
         for (let i = 6; i >= 0; i--) {
             const d = new Date(effectiveToday);
             d.setDate(d.getDate() - i);
+            const dayKey = fmtDateKey(d);
             const nextDay = new Date(d);
             nextDay.setDate(nextDay.getDate() + 1);
             const nextKey = fmtDateKey(nextDay);
 
-            rowsByColumn.push(rowByKey[`${nextKey} 00:06`] || null);
+            const row = findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey);
+            rowsByColumn.push(row || null);
             const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             times.push(label);
             fullTimes.push(label + '（次日00:06）');
@@ -1231,7 +1270,6 @@ function renderChartByKey(key) {
     if (chartConfig[key]) {
         const cfg = chartConfig[key];
         const autoY = (key === 'weeklyScore' || key === 'dailyScore');
-        // 日榜总分图使用 chartState.dailyScore（today / 7d0）；其他日榜图仍固定 today
         let range;
         if (key === 'dailyScore') {
             range = chartState.dailyScore;
