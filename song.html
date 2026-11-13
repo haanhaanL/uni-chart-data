@@ -309,10 +309,11 @@ function findBaseRecord(records, mode) {
         if (key === baseKey) return r;
     }
 
-    // 2. 兜底：范围内最早一条
+    // 2. 兜底：00:16 之后最近一条（范围内）
+    const baseTime = parseTime(baseKey.replace(' ', 'T')).getTime();
     let fallback = null;
     for (const r of records) {
-        if (r.ts < rangeStart || r.ts >= rangeEnd) continue;
+        if (r.ts < baseTime || r.ts >= rangeEnd) continue;
         if (!fallback || r.ts < fallback.ts) fallback = r;
     }
     return fallback;
