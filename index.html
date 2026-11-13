@@ -256,30 +256,7 @@
                 </div>
             </div>
 
-            <!-- TOP1/2/3 无涨幅 tab -->
-            <div class="charts-row">
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · TOP1</div>
-                        <div class="chart-legend-text" id="weeklyRank1Legend"></div>
-                        <div class="chart-wrapper" id="chartWeeklyRank1"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · TOP2</div>
-                        <div class="chart-legend-text" id="weeklyRank2Legend"></div>
-                        <div class="chart-wrapper" id="chartWeeklyRank2"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">周榜 · TOP3</div>
-                        <div class="chart-legend-text" id="weeklyRank3Legend"></div>
-                        <div class="chart-wrapper" id="chartWeeklyRank3"></div>
-                    </div>
-                </div>
-            </div>
+            <!-- 已删除 TOP1/2/3 无涨幅 tab -->
         </div>
 
         <!-- ================= 日榜 ================= -->
@@ -330,30 +307,7 @@
                 </div>
             </div>
 
-            <!-- TOP1/2/3 无涨幅 tab -->
-            <div class="charts-row">
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · TOP1</div>
-                        <div class="chart-legend-text" id="dailyRank1Legend"></div>
-                        <div class="chart-wrapper" id="chartDailyRank1"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · TOP2</div>
-                        <div class="chart-legend-text" id="dailyRank2Legend"></div>
-                        <div class="chart-wrapper" id="chartDailyRank2"></div>
-                    </div>
-                </div>
-                <div class="chart-col-3">
-                    <div class="card">
-                        <div class="title">日榜 · TOP3</div>
-                        <div class="chart-legend-text" id="dailyRank3Legend"></div>
-                        <div class="chart-wrapper" id="chartDailyRank3"></div>
-                    </div>
-                </div>
-            </div>
+            <!-- 已删除 TOP1/2/3 无涨幅 tab -->
         </div>
     </div>
 </div>
@@ -371,16 +325,10 @@ const rankFields = [
 const chartDaily = echarts.init(document.getElementById('chartDaily'));
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
 
-const chartWeeklyRank1 = echarts.init(document.getElementById('chartWeeklyRank1'));
-const chartWeeklyRank2 = echarts.init(document.getElementById('chartWeeklyRank2'));
-const chartWeeklyRank3 = echarts.init(document.getElementById('chartWeeklyRank3'));
-const chartDailyRank1 = echarts.init(document.getElementById('chartDailyRank1'));
-const chartDailyRank2 = echarts.init(document.getElementById('chartDailyRank2'));
-const chartDailyRank3 = echarts.init(document.getElementById('chartDailyRank3'));
+const allCharts = [chartDaily, chartWeekly];
 
-const allCharts = [chartDaily, chartWeekly,
-                   chartWeeklyRank1, chartWeeklyRank2, chartWeeklyRank3,
-                   chartDailyRank1, chartDailyRank2, chartDailyRank3];
+// 保留 rankFields 定义，但不再创建 rank 图表实例
+// 部分工具函数（如 renderRankChart）保留但不使用，为保持代码完整性
 allCharts.forEach(c => c.showLoading());
 
 function colorClass(v) {
@@ -1361,13 +1309,7 @@ let weeklyRowsCache = [];
 
 const chartState = {
     weeklyScore: '10d0',
-    weeklyRank1: '10d0',
-    weeklyRank2: '10d0',
-    weeklyRank3: '10d0',
     dailyScore: 'today',
-    dailyRank1: 'today',
-    dailyRank2: 'today',
-    dailyRank3: 'today',
 };
 
 const chartConfig = {
@@ -1375,14 +1317,8 @@ const chartConfig = {
     dailyScore:  { chart: chartDaily,  legend: 'dailyLegend',  field: '得分', y: 1, mode: 'daily',  rows: () => dailyRowsCache },
 };
 
-const rankChartConfig = {
-    weeklyRank1: { chart: chartWeeklyRank1, legend: 'weeklyRank1Legend', rank: 1, mode: 'weekly', rows: () => weeklyRowsCache },
-    weeklyRank2: { chart: chartWeeklyRank2, legend: 'weeklyRank2Legend', rank: 2, mode: 'weekly', rows: () => weeklyRowsCache },
-    weeklyRank3: { chart: chartWeeklyRank3, legend: 'weeklyRank3Legend', rank: 3, mode: 'weekly', rows: () => weeklyRowsCache },
-    dailyRank1:  { chart: chartDailyRank1,  legend: 'dailyRank1Legend',  rank: 1, mode: 'daily',  rows: () => dailyRowsCache },
-    dailyRank2:  { chart: chartDailyRank2,  legend: 'dailyRank2Legend',  rank: 2, mode: 'daily',  rows: () => dailyRowsCache },
-    dailyRank3:  { chart: chartDailyRank3,  legend: 'dailyRank3Legend',  rank: 3, mode: 'daily',  rows: () => dailyRowsCache },
-};
+// 注意：rankChartConfig 已移除，因为不再有 TOP1/2/3 图表
+const rankChartConfig = {};  // 空对象，保留变量以便 renderChartByKey 不报错
 
 function renderChartByKey(key) {
     if (chartConfig[key]) {
@@ -1391,13 +1327,12 @@ function renderChartByKey(key) {
         let range;
         if (key === 'dailyScore') {
             range = chartState.dailyScore;
-        } else if (key.startsWith('daily')) {
-            range = 'today';
         } else {
             range = chartState[key];
         }
         renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, autoY);
     } else if (rankChartConfig[key]) {
+        // 不会走到这里，但保留逻辑完整性
         const cfg = rankChartConfig[key];
         const range = key.startsWith('daily') ? 'today' : chartState[key];
         renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, range, cfg.mode);
@@ -1426,7 +1361,7 @@ function updateDailyDateLabels() {
     renderWeeklyTenDayTable(weeklyRows, 'weeklyTableBody');
 
     Object.keys(chartConfig).forEach(key => renderChartByKey(key));
-    Object.keys(rankChartConfig).forEach(key => renderChartByKey(key));
+    // rankChartConfig 为空，所以不会渲染多余图表
 
     allCharts.forEach(c => c.resize());
 
