@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>周榜 · 腾讯音乐由你榜 TOP3</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="common.css">
+<style>
+    .score-row {
+        display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
+        margin-bottom: 12px; align-items: flex-start;
+    }
+    .score-table-col {
+        flex: 2 1 0; min-width: 280px; max-width: 100%;
+        display: flex; flex-direction: column;
+    }
+    .score-chart-col { flex: 1 1 0; min-width: 0; }
+
+    .score-table-col .card {
+        height: 520px; display: flex; flex-direction: column; overflow: hidden;
+    }
+    .score-chart-col .card {
+        height: 520px; display: flex; flex-direction: column;
+    }
+
+    @media (max-width: 900px) {
+        .score-row { flex-direction: column; align-items: stretch; }
+        .score-table-col, .score-chart-col {
+            flex: 1 1 100%; width: 100%; min-width: 0; max-width: 100%;
+        }
+        .score-table-col .card, .score-chart-col .card {
+            height: auto; min-height: 0;
+        }
+        .score-table-col .card { max-height: 420px; overflow: hidden; }
+        .chart-wrapper-flex { height: 280px; flex: none; }
+        .recent-table { min-width: 720px; font-size: 11px; }
+        .recent-table th, .recent-table td { padding: 6px 4px; }
+        .recent-table .song-cell { max-width: 150px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>周榜 · TOP3</h1>
+    <div class="update-time" id="updateTime"></div>
+    <div id="loading">正在加载数据...</div>
+
+    <div id="content" style="display:none;">
+        <div class="range-hint" style="margin-bottom:8px;">
+            每日数据按次日0:06算，当日按最新显示
+        </div>
+        <div class="score-row">
+            <div class="score-table-col">
+                <div class="card">
+                    <div class="title">周榜 · 最近十天</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 12%;">
+                                <col style="width: 18%;"><col style="width: 12%;">
+                                <col style="width: 18%;"><col style="width: 12%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">日期</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>总分 / 差值</th>
+                                    <th>歌名-歌手</th><th>总分 / 差值</th>
+                                    <th>歌名-歌手</th><th>总分 / 差值</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weeklyTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="score-chart-col">
+                <div class="card">
+                    <div class="title">周榜 · 本周总分（周一至周日）</div>
+                    <div class="chart-legend-text" id="weeklyLegend"></div>
+                    <div class="chart-wrapper-flex" id="chartWeekly"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="dim-row">
+            <div class="dim-card">
+                <div class="title">周榜 · 播放热度</div>
+                <div class="table-scroll-box">
+                    <table class="recent-table">
+                        <colgroup>
+                            <col style="width: 16%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th rowspan="2">日期</th>
+                                <th colspan="2">1</th>
+                                <th colspan="2">2</th>
+                                <th colspan="2">3</th>
+                            </tr>
+                            <tr>
+                                <th>歌名-歌手</th><th>热度 / 差值</th>
+                                <th>歌名-歌手</th><th>热度 / 差值</th>
+                                <th>歌名-歌手</th><th>热度 / 差值</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weeklyHeatTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="dim-card">
+                <div class="title">周榜 · 畅销度</div>
+                <div class="table-scroll-box">
+                    <table class="recent-table">
+                        <colgroup>
+                            <col style="width: 16%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th rowspan="2">日期</th>
+                                <th colspan="2">1</th>
+                                <th colspan="2">2</th>
+                                <th colspan="2">3</th>
+                            </tr>
+                            <tr>
+                                <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weeklySalesTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="dim-card">
+                <div class="title">周榜 · 推荐度</div>
+                <div class="table-scroll-box">
+                    <table class="recent-table">
+                        <colgroup>
+                            <col style="width: 16%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 18%;"><col style="width: 14%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th rowspan="2">日期</th>
+                                <th colspan="2">1</th>
+                                <th colspan="2">2</th>
+                                <th colspan="2">3</th>
+                            </tr>
+                            <tr>
+                                <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                            </tr>
+                        </thead>
+                        <tbody id="weeklyRecommendTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
+chartWeekly.showLoading();
+
+function renderWeeklyTenDayTable(rows, tbodyId, field) {
+    const tbody = document.getElementById(tbodyId);
+    if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+
+    const rowByKey = {};
+    const dayRowsMap = {};
+    rows.forEach(r => {
+        const t = parseTime(r['时间']);
+        if (!t) return;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        rowByKey[key] = r;
+
+        const eff = new Date(t);
+        if (t.getHours() === 0 && t.getMinutes() < 10) {
+            eff.setDate(eff.getDate() - 1);
+        }
+        const dayKey = fmtDateKey(eff);
+        if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+        dayRowsMap[dayKey].push(r);
+    });
+
+    const effectiveToday = getTodayDateForDaily();
+    const daySummaries = [];
+
+    for (let i = 9; i >= 0; i--) {
+        const d = new Date(effectiveToday);
+        d.setDate(d.getDate() - i);
+        const dayKey = fmtDateKey(d);
+        const nextDay = new Date(d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextKey = fmtDateKey(nextDay);
+
+        const { delta, displayRow } = calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap);
+        if (!displayRow) continue;
+        daySummaries.push({ day: d, row: displayRow, delta });
+    }
+
+    daySummaries.sort((a, b) => b.day - a.day);
+
+    if (!daySummaries.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+
+    const htmlRows = daySummaries.map(({ day, row: r, delta }) => {
+        const dateLabel = `${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+        const cells = [`<td>${dateLabel}</td>`];
+        for (let rank = 1; rank <= 3; rank++) {
+            const name = r[`第${rank}名歌名`] || '';
+            const singer = r[`第${rank}名歌手`] || '';
+            const song = singer ? `${name}-${singer}` : name;
+            const score = r[`第${rank}名${field}`] || '';
+
+            let changeText = '';
+            let cls = '';
+            const d = delta[rank];
+            if (d !== null && !isNaN(d)) {
+                const fixed = d.toFixed(2);
+                changeText = (d > 0 ? '+' : '') + fixed;
+                cls = d > 0 ? 'up' : 'flat';
+            }
+
+            cells.push(`<td class="song-cell" title="${song}">${song}</td>`);
+            cells.push(`<td><span class="val-score">${score}</span> / <span class="${cls}">${changeText}</span></td>`);
+        }
+        return `<tr>${cells.join('')}</tr>`;
+    });
+
+    const placeholderCount = 10 - htmlRows.length;
+    for (let i = 0; i < placeholderCount; i++) {
+        htmlRows.push(`<tr class="placeholder-row">
+            <td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td>
+            <td>&nbsp;</td><td>&nbsp;</td>
+        </tr>`);
+    }
+
+    tbody.innerHTML = htmlRows.join('');
+}
+
+function buildWeeklyChartAxis(rows) {
+    const effectiveToday = getTodayDateForDaily();
+    const monday = getMondayOfWeek(effectiveToday);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+    }
+
+    const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    const rowByKey = {};
+    const dayRowsMap = {};
+    allSorted.forEach(r => {
+        const t = parseTime(r['时间']);
+        if (!t) return;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        rowByKey[key] = r;
+
+        const eff = new Date(t);
+        if (t.getHours() === 0 && t.getMinutes() < 10) {
+            eff.setDate(eff.getDate() - 1);
+        }
+        const dayKey = fmtDateKey(eff);
+        if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+        dayRowsMap[dayKey].push(r);
+    });
+
+    const rowsByColumn = [];
+    const times = [];
+    const fullTimes = [];
+
+    days.forEach(d => {
+        const dayKey = fmtDateKey(d);
+        const nextDay = new Date(d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextKey = fmtDateKey(nextDay);
+
+        const row = findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey);
+        if (row) {
+            const rowCopy = { ...row };
+            rowCopy.__actualLabel = row['时间'] || '';
+            rowsByColumn.push(rowCopy);
+        } else {
+            rowsByColumn.push(null);
+        }
+
+        const weekLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        const idx = (d.getDay() + 6) % 7;
+        const label = `${weekLabels[idx]} ${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        times.push(label);
+        fullTimes.push(label);
+    });
+
+    return { rowsByColumn, times, fullTimes };
+}
+
+function renderWeeklyChart(rows) {
+    const legendEl = document.getElementById('weeklyLegend');
+    const { rowsByColumn, times, fullTimes } = buildWeeklyChartAxis(rows);
+
+    let latest = null;
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        if (rowsByColumn[i]) { latest = rowsByColumn[i]; break; }
+    }
+
+    if (!latest) {
+        chartWeekly.hideLoading();
+        chartWeekly.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendEl) legendEl.innerHTML = '';
+        return;
+    }
+
+    const songKey = (r, rank) => {
+        const name = r[`第${rank}名歌名`] || '';
+        const singer = r[`第${rank}名歌手`] || '';
+        if (!name) return '';
+        return singer ? `${singer}-${name}` : name;
+    };
+
+    const songOrder = [];
+    const songSet = new Set();
+    for (let rank = 1; rank <= 3; rank++) {
+        const key = songKey(latest, rank);
+        if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
+    }
+    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
+        const r = rowsByColumn[i];
+        if (!r) continue;
+        for (let rank = 1; rank <= 3; rank++) {
+            const key = songKey(r, rank);
+            if (key && !songSet.has(key)) { songSet.add(key); songOrder.push(key); }
+        }
+    }
+
+    const songColorMap = {};
+    songOrder.forEach((key, idx) => {
+        songColorMap[key] = lineColors[idx % lineColors.length];
+    });
+
+    const series = songOrder.map(key => ({
+        name: key,
+        type: 'line',
+        data: rowsByColumn.map(r => {
+            if (!r) return null;
+            for (let rank = 1; rank <= 3; rank++) {
+                if (songKey(r, rank) === key) {
+                    const s = r[`第${rank}名得分`] || '';
+                    return s === '' ? null : parseFloat(s);
+                }
+            }
+            return null;
+        }),
+        smooth: false,
+        symbol: 'circle',
+        symbolSize: 4,
+        connectNulls: false,
+        itemStyle: { color: songColorMap[key] },
+        lineStyle: { width: 2, color: songColorMap[key] },
+        emphasis: { focus: 'series' },
+    }));
+
+    if (legendEl) {
+        legendEl.innerHTML = songOrder.map(key =>
+            `<span class="item"><span class="dot" style="background:${songColorMap[key]}"></span>${key}</span>`
+        ).join('');
+    }
+
+    let min = Infinity, max = -Infinity;
+    rowsByColumn.forEach(r => {
+        if (!r) return;
+        for (let rank = 1; rank <= 3; rank++) {
+            const s = r[`第${rank}名得分`] || '';
+            const v = parseFloat(s);
+            if (!isNaN(v)) {
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+        }
+    });
+
+    let yMin, yMax;
+    if (!isFinite(min) || !isFinite(max)) {
+        yMin = undefined; yMax = 100;
+    } else {
+        const pad = Math.max((max - min) * 0.08, 1);
+        yMin = Math.floor((min - pad) / 5) * 5;
+        yMax = Math.ceil((max + pad) / 5) * 5;
+        if (yMax > 100) yMax = 100;
+        if (yMax <= yMin) yMax = yMin + 5;
+        if (yMin < 0) yMin = 0;
+    }
+
+    chartWeekly.hideLoading();
+    chartWeekly.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = rowsByColumn[i];
+                const label = (fullTimes && fullTimes[i]) ? fullTimes[i] : times[i];
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}${r ? '' : '（无数据）'}</div>`;
+                if (r && r.__actualLabel) {
+                    html += `<div style="font-size:11px;color:#999;margin-bottom:2px;">实际：${r.__actualLabel}</div>`;
+                }
+                if (r) {
+                    const sorted = params
+                        .filter(p => p.value !== null && p.value !== undefined)
+                        .sort((a, b) => b.value - a.value);
+                    sorted.forEach(p => {
+                        html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
+                              + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
+                              + `<span style="width:48px;text-align:right;white-space:nowrap;">${p.value}</span>`
+                              + `</div>`;
+                    });
+                }
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: { interval: 1, fontSize: 10, color: '#888', rotate: 45 },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            min: yMin,
+            max: yMax,
+            minInterval: 1,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: series,
+    }, true);
+    chartWeekly.resize();
+}
+
+(async function init() {
+    const weeklyRows = await loadCsv('uni_chart_weekly.csv');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyTableBody', '得分');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyHeatTableBody', '播放热度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklySalesTableBody', '畅销度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyRecommendTableBody', '推荐度');
+
+    renderWeeklyChart(weeklyRows);
+
+    const allTimes = weeklyRows.map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+    }
+})();
+
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        chartWeekly.resize();
+    }, 200);
+});
+</script>
+</body>
+</html>

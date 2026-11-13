@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>单曲追踪 · 腾讯音乐由你榜 TOP3</title>
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<link rel="stylesheet" href="common.css">
+<style>
+    .song-tables-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .song-table-col {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(234,54,144,0.08);
+        border: 1px solid rgba(234,54,144,0.10);
+        padding: 12px 0;
+        display: flex;
+        flex-direction: column;
+        height: 420px;
+        overflow: hidden;
+    }
+    .song-table-col .title { margin: 5px 0 8px 0; }
+    .song-table-col .table-scroll-box {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .song-table-col .table-scroll-box::-webkit-scrollbar { display: none; }
+    .song-table-col .recent-table {
+        width: 100%;
+        height: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 10px;
+        table-layout: fixed;
+        min-width: 0;
+    }
+    .song-table-col .recent-table th,
+    .song-table-col .recent-table td {
+        padding: 5px 2px;
+        text-align: center;
+        border-bottom: 1px solid #f3e6ee;
+        white-space: nowrap;
+        min-height: 30px;
+        line-height: 1.4;
+    }
+    .song-table-col .recent-table th {
+        background-color: #ea3690 !important;
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 9px;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 1px 0 #f3e6ee;
+    }
+    .song-table-col .recent-table thead tr:first-child th:first-child {
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 20 !important;
+        background-color: #ea3690 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .song-table-col .recent-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        color: #555;
+        background-color: #ffffff;
+    }
+    .song-table-col .recent-table tbody tr:nth-child(even) td:first-child {
+        background-color: #fdf7fa;
+    }
+    .song-table-col .recent-table tbody tr:nth-child(even) {
+        background-color: #ea36900a;
+    }
+    .song-table-col .recent-table tbody tr.placeholder-row {
+        background-color: transparent !important;
+    }
+    .song-table-col .recent-table tbody tr.placeholder-row td {
+        border-bottom-color: transparent;
+    }
+    .song-table-col .recent-table tbody tr.placeholder-row td:first-child {
+        background-color: #ffffff !important;
+    }
+
+    .song-chart-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .song-chart-grid .chart-card {
+        flex: 1 1 calc(50% - 6px);
+        min-width: 0;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(234,54,144,0.08);
+        border: 1px solid rgba(234,54,144,0.10);
+        padding: 12px 0;
+        display: flex;
+        flex-direction: column;
+        height: 360px;
+        overflow: hidden;
+    }
+    .song-chart-grid .chart-card .title { margin: 5px 0 8px 0; }
+    .song-chart-grid .chart-card .chart-wrapper-flex {
+        width: 100%;
+        flex: 1 1 auto;
+        min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+        .song-table-col { flex: 1 1 100%; height: 360px; }
+        .song-chart-grid .chart-card { flex: 1 1 100%; height: 300px; }
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>单曲追踪 · TOP3</h1>
+    <div class="update-time" id="updateTime"></div>
+    <div id="loading">正在加载数据...</div>
+
+    <div id="content" style="display:none;">
+        <div class="range-hint" style="margin-bottom:8px;">
+            追踪歌曲：<span id="songNameLabel" style="color:#ea3690;font-weight:bold;"></span>
+        </div>
+
+        <div class="song-tables-row">
+            <div class="song-table-col">
+                <div class="title">单曲 · 周榜记录</div>
+                <div class="table-scroll-box">
+                    <table class="recent-table">
+                        <colgroup>
+                            <col style="width: 24%;">
+                            <col style="width: 19%;">
+                            <col style="width: 19%;">
+                            <col style="width: 19%;">
+                            <col style="width: 19%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>总分</th>
+                                <th>播放热度</th>
+                                <th>畅销度</th>
+                                <th>推荐度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="songWeeklyTrackTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="song-table-col">
+                <div class="title">单曲 · 日榜记录</div>
+                <div class="table-scroll-box">
+                    <table class="recent-table">
+                        <colgroup>
+                            <col style="width: 24%;">
+                            <col style="width: 19%;">
+                            <col style="width: 19%;">
+                            <col style="width: 19%;">
+                            <col style="width: 19%;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>总分</th>
+                                <th>播放热度</th>
+                                <th>畅销度</th>
+                                <th>推荐度</th>
+                            </tr>
+                        </thead>
+                        <tbody id="songDailyTrackTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="song-chart-grid">
+            <div class="chart-card">
+                <div class="title">总分趋势</div>
+                <div class="chart-legend-text" id="songScoreLegend"></div>
+                <div class="chart-wrapper-flex" id="chartSongScore"></div>
+            </div>
+            <div class="chart-card">
+                <div class="title">播放热度趋势</div>
+                <div class="chart-legend-text" id="songHeatLegend"></div>
+                <div class="chart-wrapper-flex" id="chartSongHeat"></div>
+            </div>
+            <div class="chart-card">
+                <div class="title">畅销度趋势</div>
+                <div class="chart-legend-text" id="songSalesLegend"></div>
+                <div class="chart-wrapper-flex" id="chartSongSales"></div>
+            </div>
+            <div class="chart-card">
+                <div class="title">推荐度趋势</div>
+                <div class="chart-legend-text" id="songRecommendLegend"></div>
+                <div class="chart-wrapper-flex" id="chartSongRecommend"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="common.js"></script>
+<script>
+/* 换歌只改这一行，歌名需与 CSV 中“第X名歌名”完全一致 */
+const TARGET_SONG_NAME = '大梦归';
+
+const chartSongScore = echarts.init(document.getElementById('chartSongScore'));
+const chartSongHeat = echarts.init(document.getElementById('chartSongHeat'));
+const chartSongSales = echarts.init(document.getElementById('chartSongSales'));
+const chartSongRecommend = echarts.init(document.getElementById('chartSongRecommend'));
+const songCharts = [chartSongScore, chartSongHeat, chartSongSales, chartSongRecommend];
+songCharts.forEach(c => c.showLoading());
+
+function formatSongTime(timeStr) {
+    const m = (timeStr || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
+    if (!m) return timeStr || '';
+    return `${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')} ${m[4].padStart(2, '0')}:${m[5].padStart(2, '0')}`;
+}
+
+function extractSongRecords(rows) {
+    const records = [];
+    rows.forEach(r => {
+        const t = parseTime(r['时间']);
+        if (!t) return;
+        for (let rank = 1; rank <= 3; rank++) {
+            const name = r[`第${rank}名歌名`] || '';
+            if (name === TARGET_SONG_NAME) {
+                records.push({
+                    time: r['时间'],
+                    ts: t.getTime(),
+                    得分: parseFloat(r[`第${rank}名得分`]) || null,
+                    播放热度: parseFloat(r[`第${rank}名播放热度`]) || null,
+                    畅销度: parseFloat(r[`第${rank}名畅销度`]) || null,
+                    推荐度: parseFloat(r[`第${rank}名推荐度`]) || null,
+                });
+                break;
+            }
+        }
+    });
+    records.sort((a, b) => a.ts - b.ts);
+
+    const result = [];
+    for (let i = 0; i < records.length; i++) {
+        const cur = records[i];
+        const prev = i > 0 ? records[i - 1] : null;
+        const item = { ...cur };
+        ['得分', '播放热度', '畅销度', '推荐度'].forEach(k => {
+            let delta = null;
+            if (prev && cur[k] !== null && prev[k] !== null) {
+                delta = cur[k] - prev[k];
+            }
+            item[k + '_delta'] = delta;
+        });
+        result.push(item);
+    }
+    return result;
+}
+
+function renderSongTable(records, tbodyId) {
+    const tbody = document.getElementById(tbodyId);
+    if (!records.length) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">暂无数据</td></tr>';
+        return;
+    }
+    const recent = records.slice(-30).reverse();
+    const html = recent.map(r => {
+        const timeLabel = formatSongTime(r.time || '');
+        const cells = [`<td>${timeLabel}</td>`];
+        const fields = ['得分', '播放热度', '畅销度', '推荐度'];
+        fields.forEach(k => {
+            const val = r[k] !== null && r[k] !== undefined ? r[k] : '-';
+            const delta = r[k + '_delta'];
+            let deltaText = '-';
+            let cls = '';
+            if (delta !== null && delta !== undefined && !isNaN(delta)) {
+                deltaText = (delta > 0 ? '+' : '') + delta.toFixed(2);
+                cls = delta > 0 ? 'up' : 'flat';
+            }
+            cells.push(`<td><span class="val-score">${val}</span> / <span class="${cls}">${deltaText}</span></td>`);
+        });
+        return `<tr>${cells.join('')}</tr>`;
+    }).join('');
+    tbody.innerHTML = html;
+}
+
+function renderSongChart(records, chartInst, legendId, field, color) {
+    if (!records.length) {
+        chartInst.hideLoading();
+        chartInst.setOption({
+            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+        }, true);
+        if (legendId) document.getElementById(legendId).innerHTML = '';
+        return;
+    }
+    const times = records.map(r => formatSongTime(r.time || ''));
+    const data = records.map(r => {
+        const v = r[field];
+        return v === null || v === undefined || isNaN(v) ? null : v;
+    });
+
+    let min = Infinity, max = -Infinity;
+    data.forEach(v => {
+        if (v !== null) {
+            if (v < min) min = v;
+            if (v > max) max = v;
+        }
+    });
+    let yMin, yMax;
+    if (!isFinite(min) || !isFinite(max)) {
+        yMin = 0; yMax = 100;
+    } else {
+        const pad = Math.max((max - min) * 0.1, 1);
+        yMin = Math.floor((min - pad) / 5) * 5;
+        yMax = Math.ceil((max + pad) / 5) * 5;
+        if (yMax <= yMin) yMax = yMin + 5;
+        if (yMin < 0) yMin = 0;
+    }
+
+    const legendEl = document.getElementById(legendId);
+    if (legendEl) {
+        legendEl.innerHTML = `<span class="item"><span class="dot" style="background:${color}"></span>${TARGET_SONG_NAME}</span>`;
+    }
+
+    chartInst.hideLoading();
+    chartInst.setOption({
+        tooltip: {
+            trigger: 'axis',
+            confine: true,
+            formatter: function(params) {
+                if (!params.length) return '';
+                const i = params[0].dataIndex;
+                const r = records[i];
+                const timeLabel = formatSongTime(r.time || '');
+                let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeLabel}</div>`;
+                const val = r[field];
+                const delta = r[field + '_delta'];
+                let deltaHtml = '';
+                if (delta !== null && delta !== undefined && !isNaN(delta)) {
+                    const c = delta > 0 ? '#ea3690' : '#999';
+                    deltaHtml = ` <span style="color:${c};">${delta > 0 ? '+' : ''}${delta.toFixed(2)}</span>`;
+                }
+                html += `<div>${params[0].marker} ${field}：${val !== null ? val : '-'}${deltaHtml}</div>`;
+                return html;
+            }
+        },
+        grid: { left: '2%', right: '5%', bottom: '15%', top: '8%', containLabel: true },
+        xAxis: {
+            type: 'category',
+            boundaryGap: false,
+            data: times,
+            axisLabel: { interval: 'auto', fontSize: 10, color: '#888', rotate: 45 },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+        },
+        yAxis: {
+            type: 'value',
+            min: yMin,
+            max: yMax,
+            minInterval: 1,
+            axisLabel: { fontSize: 10, color: '#888' },
+            axisLine: { lineStyle: { color: '#f0d6e4' } },
+            splitLine: { lineStyle: { color: '#faf0f6' } },
+        },
+        series: [{
+            name: TARGET_SONG_NAME,
+            type: 'line',
+            data: data,
+            smooth: false,
+            symbol: 'circle',
+            symbolSize: 4,
+            connectNulls: false,
+            itemStyle: { color: color },
+            lineStyle: { width: 2, color: color },
+            emphasis: { focus: 'series' },
+        }],
+    }, true);
+    chartInst.resize();
+}
+
+(async function init() {
+    document.getElementById('songNameLabel').textContent = TARGET_SONG_NAME;
+
+    const [dailyRows, weeklyRows] = await Promise.all([
+        loadCsv('uni_chart_daily.csv'),
+        loadCsv('uni_chart_weekly.csv'),
+    ]);
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+
+    const songWeeklyRecords = extractSongRecords(weeklyRows);
+    const songDailyRecords = extractSongRecords(dailyRows);
+
+    renderSongTable(songWeeklyRecords, 'songWeeklyTrackTableBody');
+    renderSongTable(songDailyRecords, 'songDailyTrackTableBody');
+
+    renderSongChart(songDailyRecords, chartSongScore, 'songScoreLegend', '得分', '#ea3690');
+    renderSongChart(songDailyRecords, chartSongHeat, 'songHeatLegend', '播放热度', '#7c3aed');
+    renderSongChart(songDailyRecords, chartSongSales, 'songSalesLegend', '畅销度', '#f97316');
+    renderSongChart(songDailyRecords, chartSongRecommend, 'songRecommendLegend', '推荐度', '#00e268');
+
+    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
+    if (allTimes.length) {
+        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
+    }
+})();
+
+let resizeTimer;
+window.addEventListener('resize', function() {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function() {
+        songCharts.forEach(c => c.resize());
+    }, 200);
+});
+</script>
+</body>
+</html>
