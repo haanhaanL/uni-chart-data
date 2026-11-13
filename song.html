@@ -12,13 +12,16 @@
     .song-tables-row {
         display: flex;
         flex-wrap: wrap;
+        align-items: flex-start;
         gap: 12px;
         width: 100%;
         margin-bottom: 12px;
     }
     .song-table-col {
-        flex: 1 1 calc(50% - 6px);
+        flex: 0 0 calc(50% - 6px);
+        max-width: calc(50% - 6px);
         min-width: 0;
+        box-sizing: border-box;
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -106,13 +109,16 @@
     .song-chart-grid {
         display: flex;
         flex-wrap: wrap;
+        align-items: flex-start;
         gap: 12px;
         width: 100%;
         margin-bottom: 12px;
     }
     .song-chart-grid .chart-card {
-        flex: 1 1 calc(50% - 6px);
+        flex: 0 0 calc(50% - 6px);
+        max-width: calc(50% - 6px);
         min-width: 0;
+        box-sizing: border-box;
         background: white;
         border-radius: 12px;
         box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -132,15 +138,13 @@
 
     /* 窄屏才变单列 */
     @media (max-width: 900px) {
-        .song-table-col { flex: 1 1 100%; height: 360px; }
-        .song-chart-grid .chart-card { flex: 1 1 100%; height: 300px; }
+        .song-table-col { flex: 0 0 100%; max-width: 100%; height: 360px; }
+        .song-chart-grid .chart-card { flex: 0 0 100%; max-width: 100%; height: 300px; }
     }
 </style>
 </head>
 <body>
 <div class="container">
-    <h1>单曲追踪 · TOP3</h1>
-    <div class="update-time" id="updateTime"></div>
     <div id="loading">正在加载数据...</div>
 
     <div id="content" style="display:none;">
@@ -148,7 +152,6 @@
             追踪歌曲：<span id="songNameLabel" style="color:#ea3690;font-weight:bold;"></span>
         </div>
 
-        <!-- 周榜+日榜：一行两列 -->
         <div class="song-tables-row">
             <div class="song-table-col">
                 <div class="title">单曲 · 周榜记录</div>
@@ -200,7 +203,6 @@
             </div>
         </div>
 
-        <!-- 四个图表：一行两列 -->
         <div class="song-chart-grid">
             <div class="chart-card">
                 <div class="title">总分趋势</div>
@@ -425,10 +427,6 @@ function renderSongChart(records, chartInst, legendId, field, color) {
     renderSongChart(songDailyRecords, chartSongSales, 'songSalesLegend', '畅销度', '#f97316');
     renderSongChart(songDailyRecords, chartSongRecommend, 'songRecommendLegend', '推荐度', '#00e268');
 
-    const allTimes = [...dailyRows, ...weeklyRows].map(r => r['时间']).filter(Boolean).sort();
-    if (allTimes.length) {
-        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
-    }
 })();
 
 let resizeTimer;

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>腾讯音乐由你榜 · TOP3</title>
 <link rel="stylesheet" href="common.css">
+<script src="https://cdn.bootcdn.net/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <style>
     html, body { height: 100%; }
     body { overflow: hidden; }
@@ -26,7 +27,7 @@
 
     .frame-wrap {
         position: fixed;
-        top: 86px; left: 0; right: 0; bottom: 0;
+        top: 120px; left: 0; right: 0; bottom: 0;
         background: #faf7f9;
     }
     iframe {
@@ -38,6 +39,7 @@
 <body>
 <div class="container">
     <h1>腾讯音乐由你榜 · TOP3</h1>
+    <div class="update-time" id="updateTime"></div>
     <div class="tab-bar">
         <button class="tab-btn active" data-src="weekly.html">周榜</button>
         <button class="tab-btn" data-src="daily.html">日榜</button>
@@ -60,6 +62,37 @@
             this.classList.add('active');
             frame.src = this.dataset.src;
         });
+    });
+
+    // 读取两个 CSV，取最大时间显示
+    function loadCsvTime(url) {
+        return new Promise((resolve) => {
+            Papa.parse(url + '?t=' + new Date().getTime(), {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                encoding: 'UTF-8',
+                complete: (res) => {
+                    const times = (res.data || [])
+                        .map(r => r['时间'])
+                        .filter(Boolean)
+                        .sort();
+                    resolve(times.length ? times[times.length - 1] : null);
+                },
+                error: () => resolve(null)
+            });
+        });
+    }
+
+    Promise.all([
+        loadCsvTime('uni_chart_daily.csv'),
+        loadCsvTime('uni_chart_weekly.csv'),
+    ]).then(([t1, t2]) => {
+        const all = [t1, t2].filter(Boolean).sort();
+        if (all.length) {
+            document.getElementById('updateTime').innerText =
+                `数据最后更新：${all[all.length - 1]}`;
+        }
     });
 })();
 </script>

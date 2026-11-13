@@ -130,17 +130,20 @@ h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     margin: 0 8px 4px 8px;
 }
 
-/* 维度表格：一行两个 */
+/* 维度表格：一行三个 */
 .dim-row {
     display: flex;
     flex-wrap: wrap;
+    align-items: flex-start;
     gap: 12px;
     width: 100%;
     margin-bottom: 12px;
 }
 .dim-row .dim-card {
-    flex: 1 1 calc(50% - 6px);
+    flex: 0 0 calc(33.333% - 8px);
+    max-width: calc(33.333% - 8px);
     min-width: 0;
+    box-sizing: border-box;
     background: white;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(234,54,144,0.08);
@@ -168,24 +171,24 @@ h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     height: 100%;
     border-collapse: separate;
     border-spacing: 0;
-    font-size: 11px;
+    font-size: 10px;
     table-layout: fixed;
     min-width: 0;
 }
 .dim-row .dim-card .recent-table th,
 .dim-row .dim-card .recent-table td {
-    padding: 6px 3px;
+    padding: 5px 2px;
     text-align: center;
     border-bottom: 1px solid #f3e6ee;
     white-space: nowrap;
-    min-height: 32px;
+    min-height: 30px;
     line-height: 1.4;
 }
 .dim-row .dim-card .recent-table th {
     background-color: #ea3690 !important;
     color: #ffffff;
     font-weight: bold;
-    font-size: 10px;
+    font-size: 9px;
     position: sticky;
     top: 0;
     z-index: 2;
@@ -224,7 +227,7 @@ h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     background-color: #ffffff !important;
 }
 .dim-row .dim-card .recent-table .song-cell {
-    max-width: 100px;
+    max-width: 80px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -233,7 +236,7 @@ h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
 }
 
 @media (max-width: 900px) {
-    .dim-row .dim-card { flex: 1 1 100%; height: 360px; }
+    .dim-row .dim-card { flex: 0 0 100%; max-width: 100%; height: 360px; }
     .dim-row .dim-card .recent-table { font-size: 9px; }
     .dim-row .dim-card .recent-table th,
     .dim-row .dim-card .recent-table td { padding: 4px 2px; }

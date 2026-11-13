@@ -43,8 +43,6 @@
 </head>
 <body>
 <div class="container">
-    <h1>日榜 · TOP3</h1>
-    <div class="update-time" id="updateTime"></div>
     <div id="loading">正在加载数据...</div>
 
     <div id="content" style="display:none;">
@@ -523,11 +521,6 @@ let dailyChartRange = 'today';
     renderDailyRecentTable(dailyRowsCache, 'dailyRecommendTableBody', '推荐度');
 
     renderDailyChart(dailyRowsCache, dailyChartRange);
-
-    const allTimes = dailyRowsCache.map(r => r['时间']).filter(Boolean).sort();
-    if (allTimes.length) {
-        document.getElementById('updateTime').innerText = `数据最后更新：${allTimes[allTimes.length - 1]}`;
-    }
 
     setInterval(refreshDailyTopDate, 60 * 1000);
 })();
