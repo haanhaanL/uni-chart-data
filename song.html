@@ -192,19 +192,16 @@
         </div>
 
         <div class="song-chart-grid">
-            <!-- 左：四指标折线图 -->
             <div class="chart-card">
                 <div class="title">分数趋势</div>
                 <div class="range-tabs" data-chart="songRange">
-                    <button class="range-btn active" data-range="3h">最近三小时</button>
+                    <button class="range-btn active" data-range="weekly">周榜</button>
                     <button class="range-btn" data-range="today">今天</button>
-                    <button class="range-btn" data-range="weekly">周榜</button>
                 </div>
                 <div class="chart-legend-text" id="songLineLegend"></div>
                 <div class="chart-wrapper-flex" id="chartSongLine"></div>
             </div>
 
-            <!-- 右：三维度雷达图 -->
             <div class="chart-card">
                 <div class="title">三维度雷达</div>
                 <div class="range-tabs" data-chart="songRadarRange">
@@ -220,7 +217,6 @@
 
 <script src="common.js"></script>
 <script>
-/* 换歌只改这一行 */
 const TARGET_SONG_NAME = '大梦归';
 
 const chartSongLine = echarts.init(document.getElementById('chartSongLine'));
@@ -230,7 +226,7 @@ songCharts.forEach(c => c.showLoading());
 
 let songWeeklyRecords = [];
 let songDailyRecords = [];
-let songLineRange = '3h';
+let songLineRange = 'weekly';
 let songRadarRange = 'daily';
 
 const LINE_FIELDS = [
@@ -285,25 +281,41 @@ function extractSongRecords(rows) {
     return result;
 }
 
+/* 基准点：周一 00:16（周榜）/ 当天 00:16（日榜），缺失时用范围内最早一条兜底 */
 function findBaseRecord(records, mode) {
     const effectiveToday = getTodayDateForDaily();
     let baseKey;
+    let rangeStart;
+    let rangeEnd;
 
     if (mode === 'weekly') {
         const monday = getMondayOfWeek(effectiveToday);
         baseKey = `${fmtDateKey(monday)} 00:16`;
+        rangeStart = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate()).getTime();
+        const nextMonday = new Date(monday);
+        nextMonday.setDate(nextMonday.getDate() + 7);
+        rangeEnd = new Date(nextMonday.getFullYear(), nextMonday.getMonth(), nextMonday.getDate()).getTime();
     } else {
         baseKey = `${fmtDateKey(effectiveToday)} 00:16`;
+        rangeStart = new Date(effectiveToday.getFullYear(), effectiveToday.getMonth(), effectiveToday.getDate()).getTime();
+        rangeEnd = rangeStart + 24 * 60 * 60 * 1000;
     }
 
-    let base = null;
+    // 1. 精确匹配 00:16
     for (const r of records) {
         const t = parseTime(r.time);
         if (!t) continue;
         const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-        if (key === baseKey) { base = r; break; }
+        if (key === baseKey) return r;
     }
-    return base;
+
+    // 2. 兜底：范围内最早一条
+    let fallback = null;
+    for (const r of records) {
+        if (r.ts < rangeStart || r.ts >= rangeEnd) continue;
+        if (!fallback || r.ts < fallback.ts) fallback = r;
+    }
+    return fallback;
 }
 
 function updateTableHead(theadRowId, records, mode) {
@@ -318,11 +330,12 @@ function updateTableHead(theadRowId, records, mode) {
     let html = '<th>时间</th>';
     fields.forEach((k, idx) => {
         let text = labels[idx];
+        let deltaText = '-';
         if (base && latest && latest[k] !== null && base[k] !== null) {
             const totalDelta = latest[k] - base[k];
-            const sign = totalDelta > 0 ? '+' : '';
-            text += ` / ${sign}${totalDelta.toFixed(2)}`;
+            deltaText = (totalDelta > 0 ? '+' : '') + totalDelta.toFixed(2);
         }
+        text += ` / ${deltaText}`;
         html += `<th>${text}</th>`;
     });
     theadRow.innerHTML = html;
@@ -355,14 +368,7 @@ function renderSongTable(records, tbodyId) {
     tbody.innerHTML = html;
 }
 
-/* ---- 最近三小时 ---- */
-function build3hRecords(records) {
-    const now = new Date();
-    const cutoff = now.getTime() - 3 * 60 * 60 * 1000;
-    return records.filter(r => r.ts >= cutoff);
-}
-
-/* ---- 今天：只取 HH:06，从 00:16 到次日 00:06 ---- */
+/* 今天：从 00:16 到次日 00:06，整点取 HH:06 */
 function buildTodayRecords(records) {
     const effectiveToday = getTodayDateForDaily();
     const baseKey = fmtDateKey(effectiveToday);
@@ -402,7 +408,7 @@ function getAxisLabelsToday() {
     return labels;
 }
 
-/* ---- 周榜：本周一到周日，每日取次日 00:06 ---- */
+/* 周榜：本周一到周日，每日取次日 00:06 */
 function buildWeeklyPoints(records) {
     const effectiveToday = getTodayDateForDaily();
     const monday = getMondayOfWeek(effectiveToday);
@@ -449,7 +455,7 @@ function buildWeeklyPoints(records) {
     return { points, times };
 }
 
-/* ========== 折线图（四指标合并） ========== */
+/* ========== 折线图 ========== */
 function renderSongLineChart() {
     let points = [];
     let times = [];
@@ -458,25 +464,12 @@ function renderSongLineChart() {
         const w = buildWeeklyPoints(songWeeklyRecords);
         points = w.points;
         times = w.times;
-    } else if (songLineRange === '3h') {
-        const filtered = build3hRecords(songDailyRecords);
-        if (!filtered.length) {
-            chartSongLine.hideLoading();
-            chartSongLine.setOption({
-                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
-            }, true);
-            document.getElementById('songLineLegend').innerHTML = '';
-            return;
-        }
-        points = filtered;
-        times = filtered.map(r => formatSongTime(r.time || ''));
     } else {
         const slots = buildTodayRecords(songDailyRecords);
         points = slots;
         times = getAxisLabelsToday();
     }
 
-    // 系列：每个指标一条线
     const series = LINE_FIELDS.map(f => ({
         name: f.label,
         type: 'line',
@@ -494,12 +487,10 @@ function renderSongLineChart() {
         emphasis: { focus: 'series' },
     }));
 
-    // 图例
     document.getElementById('songLineLegend').innerHTML = LINE_FIELDS.map(f =>
         `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.label}</span>`
     ).join('');
 
-    // y 轴范围：取所有指标的全局 min/max
     let min = Infinity, max = -Infinity;
     points.forEach(r => {
         if (!r) return;
@@ -532,7 +523,7 @@ function renderSongLineChart() {
                 const i = params[0].dataIndex;
                 const r = points[i];
                 const timeLabel = times[i];
-                let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeLabel}</div>`;
+                let html = `<div style="font-weight:bold;margin-bottom:6px;font-size:12px;">${timeLabel}</div>`;
                 if (!r) {
                     html += `<div style="color:#999;">无数据</div>`;
                     return html;
@@ -545,14 +536,19 @@ function renderSongLineChart() {
                     if (!field) return;
                     const val = r[field.key];
                     const delta = r[field.key + '_delta'];
-                    let deltaHtml = '';
+                    let deltaText = '-';
+                    let deltaColor = '#999';
                     if (delta !== null && delta !== undefined && !isNaN(delta)) {
-                        const c = delta > 0 ? '#ea3690' : '#999';
-                        deltaHtml = ` <span style="color:${c};">${delta > 0 ? '+' : ''}${delta.toFixed(2)}</span>`;
+                        deltaText = (delta > 0 ? '+' : '') + delta.toFixed(2);
+                        deltaColor = delta > 0 ? '#ea3690' : '#999';
                     }
-                    html += `<div style="display:flex;align-items:center;gap:2px;min-width:150px;">`
-                          + `<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.marker} ${p.seriesName}</span>`
-                          + `<span style="width:52px;text-align:right;white-space:nowrap;">${val !== null ? val : '-'}${deltaHtml}</span>`
+                    html += `<div style="display:flex;align-items:center;gap:12px;min-width:230px;line-height:20px;">`
+                          + `<span style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;">`
+                          + `<span>${p.marker}</span>`
+                          + `<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${p.seriesName}</span>`
+                          + `<span style="margin-left:auto;font-weight:bold;color:#333;">${val !== null ? val : '-'}</span>`
+                          + `</span>`
+                          + `<span style="width:60px;text-align:right;white-space:nowrap;font-weight:bold;color:${deltaColor};">${deltaText}</span>`
                           + `</div>`;
                 });
                 return html;
@@ -583,7 +579,7 @@ function renderSongLineChart() {
     chartSongLine.resize();
 }
 
-/* ========== 雷达图（三维度，最近一条） ========== */
+/* ========== 雷达图 ========== */
 function renderSongRadarChart() {
     const records = songRadarRange === 'weekly' ? songWeeklyRecords : songDailyRecords;
 
@@ -596,7 +592,6 @@ function renderSongRadarChart() {
         return;
     }
 
-    // 最近一条有三维度数据的记录
     let latest = null;
     for (let i = records.length - 1; i >= 0; i--) {
         const r = records[i];
@@ -616,13 +611,16 @@ function renderSongRadarChart() {
     }
 
     const dims = [
-        { name: '播放热度', value: latest['播放热度'] },
-        { name: '畅销度',   value: latest['畅销度'] },
-        { name: '推荐度',   value: latest['推荐度'] },
+        { name: '播放热度', key: '播放热度' },
+        { name: '畅销度',   key: '畅销度' },
+        { name: '推荐度',   key: '推荐度' },
     ];
 
     const indicators = dims.map(d => ({ name: d.name, max: 100 }));
-    const value = dims.map(d => (d.value !== null && d.value !== undefined) ? d.value : 0);
+    const value = dims.map(d => {
+        const v = latest[d.key];
+        return (v !== null && v !== undefined) ? v : 0;
+    });
 
     document.getElementById('songRadarLegend').innerHTML =
         `<span class="item" style="color:#ea3690;font-weight:bold;">最近一条：${formatSongTime(latest.time || '')}</span>`;
@@ -632,13 +630,34 @@ function renderSongRadarChart() {
         tooltip: {
             trigger: 'item',
             confine: true,
+            formatter: function() {
+                let html = `<div style="font-weight:bold;margin-bottom:6px;font-size:12px;">${formatSongTime(latest.time || '')}</div>`;
+                dims.forEach(d => {
+                    const val = latest[d.key];
+                    const delta = latest[d.key + '_delta'];
+                    let deltaText = '-';
+                    let deltaColor = '#999';
+                    if (delta !== null && delta !== undefined && !isNaN(delta)) {
+                        deltaText = (delta > 0 ? '+' : '') + delta.toFixed(2);
+                        deltaColor = delta > 0 ? '#ea3690' : '#999';
+                    }
+                    html += `<div style="display:flex;align-items:center;gap:12px;min-width:230px;line-height:20px;">`
+                          + `<span style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;">`
+                          + `<span style="color:#999;">${d.name}</span>`
+                          + `<span style="margin-left:auto;font-weight:bold;color:#333;">${val !== null ? val : '-'}</span>`
+                          + `</span>`
+                          + `<span style="width:60px;text-align:right;white-space:nowrap;font-weight:bold;color:${deltaColor};">${deltaText}</span>`
+                          + `</div>`;
+                });
+                return html;
+            }
         },
         radar: {
             indicator: indicators,
             center: ['50%', '55%'],
             radius: '55%',
             axisName: {
-                formatter: function (name, indicator) {
+                formatter: function (name) {
                     const idx = indicators.findIndex(x => x.name === name);
                     const v = idx >= 0 ? value[idx] : '';
                     return `{name|${name}}\n{value|${v}}`;
@@ -675,7 +694,7 @@ function renderSongRadarChart() {
     }, true);
     chartSongRadar.resize();
 }
-/* 过滤：本周内 */
+
 function filterThisWeek(records) {
     const effectiveToday = getTodayDateForDaily();
     const monday = getMondayOfWeek(effectiveToday);
@@ -686,7 +705,6 @@ function filterThisWeek(records) {
     return records.filter(r => r.ts >= weekStart && r.ts < weekEnd);
 }
 
-/* 过滤：本日 */
 function filterToday(records) {
     const effectiveToday = getTodayDateForDaily();
     const start = new Date(effectiveToday.getFullYear(), effectiveToday.getMonth(), effectiveToday.getDate()).getTime();
@@ -724,7 +742,6 @@ function filterToday(records) {
     renderSongRadarChart();
 })();
 
-/* 折线图 tab 切换 */
 document.querySelectorAll('.range-tabs[data-chart="songRange"]').forEach(wrap => {
     wrap.querySelectorAll('.range-btn').forEach(btn => {
         btn.addEventListener('click', function() {
@@ -736,7 +753,6 @@ document.querySelectorAll('.range-tabs[data-chart="songRange"]').forEach(wrap =>
     });
 });
 
-/* 雷达图 tab 切换 */
 document.querySelectorAll('.range-tabs[data-chart="songRadarRange"]').forEach(wrap => {
     wrap.querySelectorAll('.range-btn').forEach(btn => {
         btn.addEventListener('click', function() {
