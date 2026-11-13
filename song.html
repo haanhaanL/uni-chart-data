@@ -196,7 +196,7 @@
                 <div class="title">分数趋势</div>
                 <div class="range-tabs" data-chart="songRange">
                     <button class="range-btn active" data-range="weekly">周榜</button>
-                    <button class="range-btn" data-range="today">日榜</button>
+                    <button class="range-btn" data-range="today">今天</button>
                 </div>
                 <div class="chart-legend-text" id="songLineLegend"></div>
                 <div class="chart-wrapper-flex" id="chartSongLine"></div>
@@ -295,7 +295,6 @@ function extractSongRecords(rows) {
             let delta = null;
 
             if (isStart) {
-                // 00:16 只读官方增幅，缺失就是 null，不回退
                 const official = getOfficialDeltaByRow(cur.rawRow, cur.rank, k);
                 delta = official;
             } else if (prev && cur[k] !== null && prev[k] !== null) {
@@ -395,6 +394,7 @@ function renderSongTable(records, tbodyId) {
     tbody.innerHTML = html;
 }
 
+/* 今天：数据范围 当天00:16 ~ 次日00:06，按日期+HH:MM 精确取 */
 function buildTodayRecords(records) {
     const effectiveToday = getTodayDateForDaily();
     const baseKey = fmtDateKey(effectiveToday);
@@ -402,23 +402,23 @@ function buildTodayRecords(records) {
     nextDay.setDate(nextDay.getDate() + 1);
     const nextKey = fmtDateKey(nextDay);
 
-    const mapByHHMM = {};
+    const byFullKey = {};
     records.forEach(r => {
         const t = parseTime(r.time);
         if (!t) return;
-        const hhmm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
-        if (!mapByHHMM[hhmm]) mapByHHMM[hhmm] = r;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        if (!byFullKey[key]) byFullKey[key] = r;
     });
 
     const result = [];
-    result.push(mapByHHMM['00:16'] || null);
+    result.push(byFullKey[`${baseKey} 00:16`] || null);
 
     for (let h = 1; h <= 23; h++) {
-        const key = `${String(h).padStart(2, '0')}:06`;
-        result.push(mapByHHMM[key] || null);
+        const key = `${baseKey} ${String(h).padStart(2, '0')}:06`;
+        result.push(byFullKey[key] || null);
     }
 
-    result.push(mapByHHMM['00:06'] || null);
+    result.push(byFullKey[`${nextKey} 00:06`] || null);
 
     return result;
 }
@@ -434,9 +434,7 @@ function getAxisLabelsToday() {
 
 /* 今天某点的涨幅：
    - 00:16 读官方增幅
-   - 00:06 与前一日的 23:06 比
-   - 次日00:06 与当天 23:06 比
-   - 其他 HH:06 与 (HH-1):06 比
+   - 其他点与横轴上前一个点作差
 */
 function calcTodayPointDelta(records, targetHHMM, field) {
     const effectiveToday = getTodayDateForDaily();
@@ -453,40 +451,30 @@ function calcTodayPointDelta(records, targetHHMM, field) {
         if (!byFullKey[key]) byFullKey[key] = r;
     });
 
-    let curFullKey;
+    let curKey;
     if (targetHHMM === '次日00:06') {
-        curFullKey = `${nextKey} 00:06`;
+        curKey = `${nextKey} 00:06`;
     } else {
-        curFullKey = `${baseKey} ${targetHHMM}`;
+        curKey = `${baseKey} ${targetHHMM}`;
     }
-
-    const cur = byFullKey[curFullKey];
+    const cur = byFullKey[curKey];
     if (!cur || cur[field] === null) return null;
 
     if (targetHHMM === '00:16') {
-        const official = getOfficialDeltaByRow(cur.rawRow, cur.rank, field);
-        return official !== null ? official : null;
+        return getOfficialDeltaByRow(cur.rawRow, cur.rank, field);
     }
 
-    if (targetHHMM === '00:06') {
-        const prevDay = new Date(effectiveToday);
-        prevDay.setDate(prevDay.getDate() - 1);
-        const prevKey = `${fmtDateKey(prevDay)} 23:06`;
-        const prev = byFullKey[prevKey];
-        if (!prev || prev[field] === null) return null;
-        return cur[field] - prev[field];
+    let prevKey;
+    if (targetHHMM === '01:06') {
+        prevKey = `${baseKey} 00:16`;
+    } else if (targetHHMM === '次日00:06') {
+        prevKey = `${baseKey} 23:06`;
+    } else {
+        const [h] = targetHHMM.split(':').map(Number);
+        prevKey = `${baseKey} ${String(h - 1).padStart(2, '0')}:06`;
     }
 
-    if (targetHHMM === '次日00:06') {
-        const prevKey = `${baseKey} 23:06`;
-        const prev = byFullKey[prevKey];
-        if (!prev || prev[field] === null) return null;
-        return cur[field] - prev[field];
-    }
-
-    const [h] = targetHHMM.split(':').map(Number);
-    const prevHHMM = `${String(h - 1).padStart(2, '0')}:06`;
-    const prev = byFullKey[`${baseKey} ${prevHHMM}`];
+    const prev = byFullKey[prevKey];
     if (!prev || prev[field] === null) return null;
     return cur[field] - prev[field];
 }
@@ -850,11 +838,14 @@ function filterThisWeek(records) {
     return records.filter(r => r.ts >= weekStart && r.ts < weekEnd);
 }
 
+/* 本日：当天 00:00 ~ 次日 00:06 */
 function filterToday(records) {
     const effectiveToday = getTodayDateForDaily();
     const start = new Date(effectiveToday.getFullYear(), effectiveToday.getMonth(), effectiveToday.getDate()).getTime();
-    const end = start + 24 * 60 * 60 * 1000;
-    return records.filter(r => r.ts >= start && r.ts < end);
+    const nextDay = new Date(effectiveToday);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const end = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate()).getTime() + 6 * 60 * 1000;
+    return records.filter(r => r.ts >= start && r.ts <= end);
 }
 
 (async function init() {
