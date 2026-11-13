@@ -16,6 +16,7 @@
         gap: 12px;
         width: 100%;
         margin-bottom: 12px;
+        min-width: 0;
     }
     .song-table-col {
         flex: 0 0 calc(50% - 6px);
@@ -29,29 +30,26 @@
         padding: 12px 0;
         display: flex;
         flex-direction: column;
-        height: 420px;
         overflow: hidden;
+        /* 去掉固定高度，让内容自适应 */
     }
     .song-table-col .title { margin: 5px 0 8px 0; }
     .song-table-col .table-scroll-box {
         width: 100%;
-        overflow-x: auto;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        flex: 1 1 auto;
-        min-height: 0;
+        /* 去掉滚动 */
+        overflow: visible;
         display: flex;
         flex-direction: column;
     }
-    .song-table-col .table-scroll-box::-webkit-scrollbar { display: none; }
     .song-table-col .recent-table {
         width: 100%;
-        height: 100%;
         border-collapse: separate;
         border-spacing: 0;
         font-size: 10px;
         table-layout: fixed;
         min-width: 0;
+        /* 高度自适应 */
+        height: auto;
     }
     .song-table-col .recent-table th,
     .song-table-col .recent-table td {
@@ -59,7 +57,6 @@
         text-align: center;
         border-bottom: 1px solid #f3e6ee;
         white-space: nowrap;
-        min-height: 30px;
         line-height: 1.4;
     }
     .song-table-col .recent-table th {
@@ -95,15 +92,6 @@
     .song-table-col .recent-table tbody tr:nth-child(even) {
         background-color: #ea36900a;
     }
-    .song-table-col .recent-table tbody tr.placeholder-row {
-        background-color: transparent !important;
-    }
-    .song-table-col .recent-table tbody tr.placeholder-row td {
-        border-bottom-color: transparent;
-    }
-    .song-table-col .recent-table tbody tr.placeholder-row td:first-child {
-        background-color: #ffffff !important;
-    }
 
     /* 四个图表：一行两列 */
     .song-chart-grid {
@@ -113,6 +101,7 @@
         gap: 12px;
         width: 100%;
         margin-bottom: 12px;
+        min-width: 0;
     }
     .song-chart-grid .chart-card {
         flex: 0 0 calc(50% - 6px);
@@ -138,7 +127,7 @@
 
     /* 窄屏才变单列 */
     @media (max-width: 900px) {
-        .song-table-col { flex: 0 0 100%; max-width: 100%; height: 360px; }
+        .song-table-col { flex: 0 0 100%; max-width: 100%; }
         .song-chart-grid .chart-card { flex: 0 0 100%; max-width: 100%; height: 300px; }
     }
 </style>
@@ -152,9 +141,10 @@
             追踪歌曲：<span id="songNameLabel" style="color:#ea3690;font-weight:bold;"></span>
         </div>
 
+        <!-- 表格：一行两列，不滚动，高度自适应 -->
         <div class="song-tables-row">
             <div class="song-table-col">
-                <div class="title">单曲 · 周榜记录</div>
+                <div class="title">单曲 · 周榜记录（最近15条）</div>
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
@@ -178,7 +168,7 @@
                 </div>
             </div>
             <div class="song-table-col">
-                <div class="title">单曲 · 日榜记录</div>
+                <div class="title">单曲 · 日榜记录（最近15条）</div>
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
@@ -201,6 +191,12 @@
                     </table>
                 </div>
             </div>
+        </div>
+
+        <!-- 图表切换：最近三小时 / 今天 -->
+        <div class="range-tabs" data-chart="songRange">
+            <button class="range-btn active" data-range="3h">最近三小时</button>
+            <button class="range-btn" data-range="today">今天</button>
         </div>
 
         <div class="song-chart-grid">
@@ -239,6 +235,10 @@ const chartSongSales = echarts.init(document.getElementById('chartSongSales'));
 const chartSongRecommend = echarts.init(document.getElementById('chartSongRecommend'));
 const songCharts = [chartSongScore, chartSongHeat, chartSongSales, chartSongRecommend];
 songCharts.forEach(c => c.showLoading());
+
+let songWeeklyRecords = [];
+let songDailyRecords = [];
+let songRangeMode = '3h';
 
 function formatSongTime(timeStr) {
     const m = (timeStr || '').match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})[ T](\d{1,2}):(\d{1,2})/);
@@ -291,7 +291,8 @@ function renderSongTable(records, tbodyId) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">暂无数据</td></tr>';
         return;
     }
-    const recent = records.slice(-30).reverse();
+    // 最近 15 条，倒序
+    const recent = records.slice(-15).reverse();
     const html = recent.map(r => {
         const timeLabel = formatSongTime(r.time || '');
         const cells = [`<td>${timeLabel}</td>`];
@@ -312,17 +313,82 @@ function renderSongTable(records, tbodyId) {
     tbody.innerHTML = html;
 }
 
-function renderSongChart(records, chartInst, legendId, field, color) {
-    if (!records.length) {
-        chartInst.hideLoading();
-        chartInst.setOption({
-            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
-        }, true);
-        if (legendId) document.getElementById(legendId).innerHTML = '';
-        return;
+/* ---- 最近三小时：沿用原始记录 ---- */
+function build3hRecords(records) {
+    const now = new Date();
+    const cutoff = now.getTime() - 3 * 60 * 60 * 1000;
+    return records.filter(r => r.ts >= cutoff);
+}
+
+/* ---- 今天：只取 HH:06，从 00:16 到次日 00:06 ---- */
+function buildTodayRecords(records) {
+    const effectiveToday = getTodayDateForDaily();
+    const baseKey = fmtDateKey(effectiveToday);
+    const nextDay = new Date(effectiveToday);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextKey = fmtDateKey(nextDay);
+
+    // 建立 "日期 HH:06" -> 记录 的映射（同点取第一条）
+    const map = {};
+    records.forEach(r => {
+        const t = parseTime(r.time);
+        if (!t || t.getMinutes() !== 6) return;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:06`;
+        if (!map[key]) map[key] = r;
+    });
+
+    const result = [];
+    // 00:16 到 23:16 整点后的 06 分？按需求：0:16 到次日 0:06
+    // 实际时间轴：00:16, 01:06, 02:06, ..., 23:06, 次日00:06
+    // 00:16 没有就空着，先放 00:16
+    const firstKey = `${baseKey} 00:16`;
+    result.push(map[firstKey] || null);
+
+    for (let h = 1; h <= 23; h++) {
+        const key = `${baseKey} ${String(h).padStart(2, '0')}:06`;
+        result.push(map[key] || null);
     }
-    const times = records.map(r => formatSongTime(r.time || ''));
-    const data = records.map(r => {
+
+    const lastKey = `${nextKey} 00:06`;
+    result.push(map[lastKey] || null);
+
+    return result;
+}
+
+function getAxisLabelsToday() {
+    const effectiveToday = getTodayDateForDaily();
+    const labels = ['00:16'];
+    for (let h = 1; h <= 23; h++) {
+        labels.push(`${String(h).padStart(2, '0')}:06`);
+    }
+    labels.push('次日00:06');
+    return labels;
+}
+
+function renderSongChart(records, chartInst, legendId, field, color) {
+    let points = [];
+    let times = [];
+
+    if (songRangeMode === '3h') {
+        const filtered = build3hRecords(records);
+        if (!filtered.length) {
+            chartInst.hideLoading();
+            chartInst.setOption({
+                title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
+            }, true);
+            if (legendId) document.getElementById(legendId).innerHTML = '';
+            return;
+        }
+        points = filtered;
+        times = filtered.map(r => formatSongTime(r.time || ''));
+    } else {
+        const slots = buildTodayRecords(records);
+        points = slots;
+        times = getAxisLabelsToday();
+    }
+
+    const data = points.map(r => {
+        if (!r) return null;
         const v = r[field];
         return v === null || v === undefined || isNaN(v) ? null : v;
     });
@@ -358,9 +424,13 @@ function renderSongChart(records, chartInst, legendId, field, color) {
             formatter: function(params) {
                 if (!params.length) return '';
                 const i = params[0].dataIndex;
-                const r = records[i];
-                const timeLabel = formatSongTime(r.time || '');
+                const r = points[i];
+                const timeLabel = times[i];
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeLabel}</div>`;
+                if (!r) {
+                    html += `<div style="color:#999;">无数据</div>`;
+                    return html;
+                }
                 const val = r[field];
                 const delta = r[field + '_delta'];
                 let deltaHtml = '';
@@ -405,6 +475,13 @@ function renderSongChart(records, chartInst, legendId, field, color) {
     chartInst.resize();
 }
 
+function renderAllSongCharts() {
+    renderSongChart(songDailyRecords, chartSongScore, 'songScoreLegend', '得分', '#ea3690');
+    renderSongChart(songDailyRecords, chartSongHeat, 'songHeatLegend', '播放热度', '#7c3aed');
+    renderSongChart(songDailyRecords, chartSongSales, 'songSalesLegend', '畅销度', '#f97316');
+    renderSongChart(songDailyRecords, chartSongRecommend, 'songRecommendLegend', '推荐度', '#00e268');
+}
+
 (async function init() {
     document.getElementById('songNameLabel').textContent = TARGET_SONG_NAME;
 
@@ -416,18 +493,25 @@ function renderSongChart(records, chartInst, legendId, field, color) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    const songWeeklyRecords = extractSongRecords(weeklyRows);
-    const songDailyRecords = extractSongRecords(dailyRows);
+    songWeeklyRecords = extractSongRecords(weeklyRows);
+    songDailyRecords = extractSongRecords(dailyRows);
 
     renderSongTable(songWeeklyRecords, 'songWeeklyTrackTableBody');
     renderSongTable(songDailyRecords, 'songDailyTrackTableBody');
 
-    renderSongChart(songDailyRecords, chartSongScore, 'songScoreLegend', '得分', '#ea3690');
-    renderSongChart(songDailyRecords, chartSongHeat, 'songHeatLegend', '播放热度', '#7c3aed');
-    renderSongChart(songDailyRecords, chartSongSales, 'songSalesLegend', '畅销度', '#f97316');
-    renderSongChart(songDailyRecords, chartSongRecommend, 'songRecommendLegend', '推荐度', '#00e268');
-
+    renderAllSongCharts();
 })();
+
+document.querySelectorAll('.range-tabs').forEach(wrap => {
+    wrap.querySelectorAll('.range-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            wrap.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            songRangeMode = this.dataset.range;
+            renderAllSongCharts();
+        });
+    });
+});
 
 let resizeTimer;
 window.addEventListener('resize', function() {

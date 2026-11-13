@@ -81,7 +81,7 @@
             </div>
             <div class="score-chart-col">
                 <div class="card">
-                    <div class="title">周榜 · 本周总分（周一至周日）</div>
+                    <div class="title">周榜 · 本周总分</div>
                     <div class="chart-legend-text" id="weeklyLegend"></div>
                     <div class="chart-wrapper-flex" id="chartWeekly"></div>
                 </div>
@@ -310,9 +310,7 @@ function buildWeeklyChartAxis(rows) {
             rowsByColumn.push(null);
         }
 
-        const weekLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-        const idx = (d.getDay() + 6) % 7;
-        const label = `${weekLabels[idx]} ${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         times.push(label);
         fullTimes.push(label);
     });

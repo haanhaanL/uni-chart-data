@@ -1,14 +1,25 @@
 body {
-    margin: 0; padding: 8px; background-color: #faf7f9;
+    margin: 0;
+    padding: 8px;
+    background-color: #faf7f9;
     font-family: sans-serif;
-    display: flex; flex-direction: column; align-items: center; overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 body::after {
     content: ""; position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 99998;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='120'><text x='20' y='70' font-size='28' font-weight='900' fill='rgba(234,54,144,0.06)' transform='rotate(-25 100 60)'>mzc051</text></svg>");
     background-repeat: repeat; background-size: 200px 120px;
 }
-.container { width: 100%; max-width: 1600px; }
+.container {
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
 h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
 .update-time { text-align: center; color: #999; font-size: 12px; margin-bottom: 12px; }
 
@@ -138,6 +149,7 @@ h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     gap: 12px;
     width: 100%;
     margin-bottom: 12px;
+    min-width: 0;
 }
 .dim-row .dim-card {
     flex: 0 0 calc(33.333% - 8px);
@@ -233,6 +245,13 @@ h1 { text-align: center; color: #ea3690; font-size: 18px; margin: 10px 0; }
     text-overflow: ellipsis;
     text-align: left;
     color: #555;
+}
+
+/* 防止横向溢出 */
+.score-row,
+.song-tables-row,
+.song-chart-grid {
+    min-width: 0;
 }
 
 @media (max-width: 900px) {

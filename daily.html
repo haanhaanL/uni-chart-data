@@ -56,10 +56,10 @@
                     <div class="table-scroll-box">
                         <table class="recent-table">
                             <colgroup>
-                                <col style="width: 14%;">
-                                <col style="width: 18%;"><col style="width: 12%;">
-                                <col style="width: 18%;"><col style="width: 12%;">
-                                <col style="width: 18%;"><col style="width: 12%;">
+                                <col style="width: 10%;">
+                                <col style="width: 20%;"><col style="width: 15%;">
+                                <col style="width: 20%;"><col style="width: 15%;">
+                                <col style="width: 20%;"><col style="width: 15%;">
                             </colgroup>
                             <thead>
                                 <tr>
@@ -98,10 +98,10 @@
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
-                            <col style="width: 16%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 10%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
                         </colgroup>
                         <thead>
                             <tr>
@@ -125,10 +125,10 @@
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
-                            <col style="width: 16%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 10%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
                         </colgroup>
                         <thead>
                             <tr>
@@ -152,10 +152,10 @@
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
-                            <col style="width: 16%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
-                            <col style="width: 18%;"><col style="width: 14%;">
+                            <col style="width: 10%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
+                            <col style="width: 20%;"><col style="width: 15%;">
                         </colgroup>
                         <thead>
                             <tr>
@@ -188,6 +188,13 @@ function refreshDailyTopDate() {
     if (el) el.textContent = fmtDateLabel(getTodayDateForDaily());
 }
 
+/* 只保留 HH:mm */
+function formatHHMM(timeStr) {
+    const m = (timeStr || '').match(/[ T](\d{1,2}):(\d{1,2})/);
+    if (!m) return timeStr || '';
+    return `${m[1].padStart(2, '0')}:${m[2].padStart(2, '0')}`;
+}
+
 function renderDailyRecentTable(rows, tbodyId, field) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
@@ -204,7 +211,7 @@ function renderDailyRecentTable(rows, tbodyId, field) {
     const recent = list.slice(-10).reverse();
 
     const htmlRows = recent.map(({ row: r, deltas }) => {
-        const displayTime = stripYear(r['时间'] || '');
+        const displayTime = formatHHMM(r['时间'] || '');
         const cells = [`<td>${displayTime}</td>`];
         for (let rank = 1; rank <= 3; rank++) {
             const name = r[`第${rank}名歌名`] || '';
