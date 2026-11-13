@@ -47,23 +47,23 @@
         height: 100%;
         border-collapse: separate;
         border-spacing: 0;
-        font-size: 9px;
+        font-size: 12px;
         table-layout: fixed;
         min-width: 0;
     }
     .song-table-col .recent-table th,
     .song-table-col .recent-table td {
-        padding: 3px 2px;
+        padding: 8px 5px;
         text-align: center;
         border-bottom: 1px solid #f3e6ee;
         white-space: nowrap;
-        line-height: 1.3;
+        line-height: 1.5;
     }
     .song-table-col .recent-table th {
         background-color: #ea3690 !important;
         color: #ffffff;
         font-weight: bold;
-        font-size: 8px;
+        font-size: 11px;
         position: sticky;
         top: 0;
         z-index: 2;
@@ -141,7 +141,7 @@
 
         <div class="song-tables-row">
             <div class="song-table-col">
-                <div class="title">单曲 · 周榜记录</div>
+                <div class="title">单曲 · 周榜记录（最近10条）</div>
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
@@ -165,7 +165,7 @@
                 </div>
             </div>
             <div class="song-table-col">
-                <div class="title">单曲 · 日榜记录</div>
+                <div class="title">单曲 · 日榜记录（最近10条）</div>
                 <div class="table-scroll-box">
                     <table class="recent-table">
                         <colgroup>
@@ -193,6 +193,7 @@
         <div class="range-tabs" data-chart="songRange">
             <button class="range-btn active" data-range="3h">最近三小时</button>
             <button class="range-btn" data-range="today">今天</button>
+            <button class="range-btn" data-range="weekly">周榜</button>
         </div>
 
         <div class="song-chart-grid">
@@ -287,7 +288,7 @@ function renderSongTable(records, tbodyId) {
         tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#999;">暂无数据</td></tr>';
         return;
     }
-    const recent = records.slice(-15).reverse();
+    const recent = records.slice(-10).reverse();
     const html = recent.map(r => {
         const timeLabel = formatSongTime(r.time || '');
         const cells = [`<td>${timeLabel}</td>`];
@@ -355,12 +356,63 @@ function getAxisLabelsToday() {
     return labels;
 }
 
-function renderSongChart(records, chartInst, legendId, field, color) {
+/* ---- 周榜：本周一到周日，每日取次日 00:06 ---- */
+function buildWeeklyPoints(records) {
+    const effectiveToday = getTodayDateForDaily();
+    const monday = getMondayOfWeek(effectiveToday);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+    }
+
+    const rowByKey = {};
+    const dayRowsMap = {};
+    records.forEach(r => {
+        const t = parseTime(r.time);
+        if (!t) return;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        rowByKey[key] = r;
+
+        const eff = new Date(t);
+        if (t.getHours() === 0 && t.getMinutes() < 10) {
+            eff.setDate(eff.getDate() - 1);
+        }
+        const dayKey = fmtDateKey(eff);
+        if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+        dayRowsMap[dayKey].push(r);
+    });
+
+    const points = [];
+    const times = [];
+
+    days.forEach(d => {
+        const dayKey = fmtDateKey(d);
+        const nextDay = new Date(d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextKey = fmtDateKey(nextDay);
+
+        const row = findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey);
+        points.push(row || null);
+
+        const label = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        times.push(label);
+    });
+
+    return { points, times };
+}
+
+function renderSongChart(chartInst, legendId, field, color) {
     let points = [];
     let times = [];
 
-    if (songRangeMode === '3h') {
-        const filtered = build3hRecords(records);
+    if (songRangeMode === 'weekly') {
+        const w = buildWeeklyPoints(songWeeklyRecords);
+        points = w.points;
+        times = w.times;
+    } else if (songRangeMode === '3h') {
+        const filtered = build3hRecords(songDailyRecords);
         if (!filtered.length) {
             chartInst.hideLoading();
             chartInst.setOption({
@@ -372,7 +424,7 @@ function renderSongChart(records, chartInst, legendId, field, color) {
         points = filtered;
         times = filtered.map(r => formatSongTime(r.time || ''));
     } else {
-        const slots = buildTodayRecords(records);
+        const slots = buildTodayRecords(songDailyRecords);
         points = slots;
         times = getAxisLabelsToday();
     }
@@ -469,10 +521,10 @@ function renderSongChart(records, chartInst, legendId, field, color) {
 }
 
 function renderAllSongCharts() {
-    renderSongChart(songDailyRecords, chartSongScore, 'songScoreLegend', '得分', '#ea3690');
-    renderSongChart(songDailyRecords, chartSongHeat, 'songHeatLegend', '播放热度', '#7c3aed');
-    renderSongChart(songDailyRecords, chartSongSales, 'songSalesLegend', '畅销度', '#f97316');
-    renderSongChart(songDailyRecords, chartSongRecommend, 'songRecommendLegend', '推荐度', '#00e268');
+    renderSongChart(chartSongScore, 'songScoreLegend', '得分', '#ea3690');
+    renderSongChart(chartSongHeat, 'songHeatLegend', '播放热度', '#7c3aed');
+    renderSongChart(chartSongSales, 'songSalesLegend', '畅销度', '#f97316');
+    renderSongChart(chartSongRecommend, 'songRecommendLegend', '推荐度', '#00e268');
 }
 
 /* 过滤：本周内 */
