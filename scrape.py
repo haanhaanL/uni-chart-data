@@ -13,6 +13,7 @@ BJT = timezone(timedelta(hours=8))
 API_DAILY = "https://yobang.tencentmusic.com/unichartsapi/yobang/daily/chart?page=1&pageSize=200"
 API_WEEKLY = "https://yobang.tencentmusic.com/unichartsapi/v1/songs/charts/dynamic?offset=0&limit=200&platform=website&t={ts}"
 API_DETAIL = "https://yobang.tencentmusic.com/unichartsapi/v1/songs/{uid}/charts_detail"
+API_DAILY_DETAIL = "https://yobang.tencentmusic.com/unichartsapi/yobang/daily/chart/detail/all?itemId={uid}"
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) "
@@ -30,7 +31,7 @@ HEADER = [
 
 
 def fetch_detail_indices(client, uid):
-    """请求 charts_detail，按 code 取三个维度：1=播放热度, 4=畅销度, 5=推荐度"""
+    """周榜详情：请求 charts_detail，按 code 取三个维度：1=播放热度, 4=畅销度, 5=推荐度"""
     play = sales = recommend = ""
     if not uid:
         return play, sales, recommend
@@ -48,6 +49,26 @@ def fetch_detail_indices(client, uid):
     return play, sales, recommend
 
 
+def fetch_daily_detail_indices(client, uid):
+    """日榜详情：extend.playIndex=播放热度, extend.payIndex=畅销度, extend.popIndex=推荐度"""
+    play = sales = recommend = ""
+    if not uid:
+        return play, sales, recommend
+    try:
+        resp = client.get(API_DAILY_DETAIL.format(uid=uid))
+        resp.raise_for_status()
+        data = resp.json().get("data") or []
+        if data:
+            current = next((d for d in data if d.get("currentIssue")), data[0])
+            ext = current.get("extend") or {}
+            play = ext.get("playIndex", "")
+            sales = ext.get("payIndex", "")
+            recommend = ext.get("popIndex", "")
+    except Exception as e:
+        print(f"[daily-detail] uid={uid} 失败: {e}")
+    return play, sales, recommend
+
+
 def fetch_daily_top3(client):
     resp = client.get(API_DAILY)
     resp.raise_for_status()
@@ -56,7 +77,7 @@ def fetch_daily_top3(client):
     for it in items:
         info = it.get("info") or {}
         uid = it.get("itemId")
-        play, sales, recommend = fetch_detail_indices(client, uid)
+        play, sales, recommend = fetch_daily_detail_indices(client, uid)
         result.append({
             "name": info.get("trackNameShow", ""),
             "singer": info.get("singerName", ""),
