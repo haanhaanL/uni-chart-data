@@ -182,6 +182,26 @@
         margin: 0 8px 4px 8px;
     }
 
+    /* 新增：三个维度表格的容器，复用 score-table-col 的卡片样式 */
+    .dim-table-col {
+        flex: 1 1 100%;
+        min-width: 0;
+        margin-bottom: 12px;
+    }
+    .dim-table-col .card {
+        height: 420px;
+        display: flex; flex-direction: column;
+        overflow: hidden;
+    }
+    .dim-table-col .table-scroll-box {
+        width: 100%;
+        overflow-x: auto; overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto; min-height: 0;
+        display: flex; flex-direction: column;
+    }
+    .dim-table-col .table-scroll-box::-webkit-scrollbar { display: none; }
+
     @media (max-width: 900px) {
         .score-row { flex-direction: column; align-items: stretch; }
         .score-table-col, .score-chart-col {
@@ -197,6 +217,8 @@
         .recent-table { min-width: 720px; font-size: 11px; }
         .recent-table th, .recent-table td { padding: 6px 4px; }
         .recent-table .song-cell { max-width: 150px; }
+
+        .dim-table-col .card { height: auto; max-height: 360px; }
     }
 </style>
 </head>
@@ -256,7 +278,96 @@
                 </div>
             </div>
 
-            <!-- 已删除 TOP1/2/3 无涨幅 tab -->
+            <!-- 新增：周榜三个维度表格 -->
+            <div class="score-row">
+                <div class="dim-table-col">
+                    <div class="card">
+                        <div class="title">周榜 · 播放热度</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">日期</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>热度 / 差值</th>
+                                        <th>歌名-歌手</th><th>热度 / 差值</th>
+                                        <th>歌名-歌手</th><th>热度 / 差值</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyHeatTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="dim-table-col">
+                    <div class="card">
+                        <div class="title">周榜 · 畅销度</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">日期</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                        <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                        <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklySalesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="dim-table-col">
+                    <div class="card">
+                        <div class="title">周榜 · 推荐度</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">日期</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                        <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                        <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="weeklyRecommendTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- ================= 日榜 ================= -->
@@ -307,7 +418,96 @@
                 </div>
             </div>
 
-            <!-- 已删除 TOP1/2/3 无涨幅 tab -->
+            <!-- 新增：日榜三个维度表格 -->
+            <div class="score-row">
+                <div class="dim-table-col">
+                    <div class="card">
+                        <div class="title">日榜 · 播放热度</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>热度 / 增幅</th>
+                                        <th>歌名-歌手</th><th>热度 / 增幅</th>
+                                        <th>歌名-歌手</th><th>热度 / 增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyHeatTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="dim-table-col">
+                    <div class="card">
+                        <div class="title">日榜 · 畅销度</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>畅销度 / 增幅</th>
+                                        <th>歌名-歌手</th><th>畅销度 / 增幅</th>
+                                        <th>歌名-歌手</th><th>畅销度 / 增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailySalesTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="dim-table-col">
+                    <div class="card">
+                        <div class="title">日榜 · 推荐度</div>
+                        <div class="table-scroll-box">
+                            <table class="recent-table">
+                                <colgroup>
+                                    <col style="width: 14%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                    <col style="width: 18%;"><col style="width: 12%;">
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th rowspan="2">时间</th>
+                                        <th colspan="2">1</th>
+                                        <th colspan="2">2</th>
+                                        <th colspan="2">3</th>
+                                    </tr>
+                                    <tr>
+                                        <th>歌名-歌手</th><th>推荐度 / 增幅</th>
+                                        <th>歌名-歌手</th><th>推荐度 / 增幅</th>
+                                        <th>歌名-歌手</th><th>推荐度 / 增幅</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dailyRecommendTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -327,8 +527,6 @@ const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
 
 const allCharts = [chartDaily, chartWeekly];
 
-// 保留 rankFields 定义，但不再创建 rank 图表实例
-// 部分工具函数（如 renderRankChart）保留但不使用，为保持代码完整性
 allCharts.forEach(c => c.showLoading());
 
 function colorClass(v) {
@@ -487,7 +685,7 @@ function calcDailyDeltaList(rows) {
     });
 }
 
-function renderDailyRecentTable(rows, tbodyId) {
+function renderDailyRecentTable(rows, tbodyId, field) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
@@ -509,7 +707,7 @@ function renderDailyRecentTable(rows, tbodyId) {
             const name = r[`第${rank}名歌名`] || '';
             const singer = r[`第${rank}名歌手`] || '';
             const song = singer ? `${name}-${singer}` : name;
-            const score = r[`第${rank}名得分`] || '';
+            const score = r[`第${rank}名${field}`] || '';
 
             let changeText = '-';
             let cls = '';
@@ -539,7 +737,7 @@ function renderDailyRecentTable(rows, tbodyId) {
     tbody.innerHTML = htmlRows.join('');
 }
 
-function renderWeeklyTenDayTable(rows, tbodyId) {
+function renderWeeklyTenDayTable(rows, tbodyId, field) {
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
@@ -594,7 +792,7 @@ function renderWeeklyTenDayTable(rows, tbodyId) {
             const name = r[`第${rank}名歌名`] || '';
             const singer = r[`第${rank}名歌手`] || '';
             const song = singer ? `${name}-${singer}` : name;
-            const score = r[`第${rank}名得分`] || '';
+            const score = r[`第${rank}名${field}`] || '';
 
             let changeText = '';
             let cls = '';
@@ -1183,111 +1381,6 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
     chartInst.resize();
 }
 
-function renderRankChart(rows, chartInst, legendId, rank, range, mode) {
-    range = range || '3d';
-    const legendEl = document.getElementById(legendId);
-    const { rowsByColumn, times, fullTimes } = buildAxis(rows, range);
-
-    let latestRow = null;
-    for (let i = rowsByColumn.length - 1; i >= 0; i--) {
-        if (rowsByColumn[i]) { latestRow = rowsByColumn[i]; break; }
-    }
-
-    if (!latestRow) {
-        chartInst.hideLoading();
-        chartInst.setOption({
-            title: { text: '暂无数据', left: 'center', top: 'middle', textStyle: { color: '#999', fontSize: 14 } }
-        }, true);
-        if (legendEl) legendEl.innerHTML = '';
-        return;
-    }
-
-    const series = rankFields.map(f => ({
-        name: f.key,
-        type: 'line',
-        data: rowsByColumn.map(r => {
-            if (!r) return null;
-            const s = r[`第${rank}名${f.key}`] || '';
-            return s === '' ? null : parseFloat(s);
-        }),
-        smooth: false,
-        symbol: 'circle',
-        symbolSize: 4,
-        connectNulls: false,
-        itemStyle: { color: f.color },
-        lineStyle: { width: 2, color: f.color },
-        emphasis: { focus: 'series' },
-    }));
-
-    if (legendEl) {
-        const name = latestRow[`第${rank}名歌名`] || '';
-        const singer = latestRow[`第${rank}名歌手`] || '';
-        const songLabel = singer ? `${singer}-${name}` : name;
-        const songHtml = songLabel
-            ? `<span style="color:#ea3690;font-weight:bold;">当前：${songLabel}</span><br>`
-            : '';
-        legendEl.innerHTML = songHtml + rankFields.map(f =>
-            `<span class="item"><span class="dot" style="background:${f.color}"></span>${f.key}</span>`
-        ).join('');
-    }
-
-    const yAxisOpt = {
-        type: 'value',
-        min: 0,
-        max: 100,
-        interval: 20,
-        axisLabel: { fontSize: 10, color: '#888' },
-        axisLine: { lineStyle: { color: '#f0d6e4' } },
-        splitLine: { lineStyle: { color: '#faf0f6' } },
-    };
-
-    chartInst.hideLoading();
-    chartInst.setOption({
-        tooltip: {
-            trigger: 'axis',
-            confine: true,
-            formatter: function(params) {
-                if (!params.length) return '';
-                const i = params[0].dataIndex;
-                const r = rowsByColumn[i];
-                const fullLabel = (fullTimes && fullTimes[i]) ? fullTimes[i] : times[i];
-                const timeText = fullLabel + (r ? '' : '（无数据）');
-                let songText = '';
-                if (r) {
-                    const name = r[`第${rank}名歌名`] || '';
-                    const singer = r[`第${rank}名歌手`] || '';
-                    const song = singer ? `${singer}-${name}` : name;
-                    if (song) songText = ` · ${song}`;
-                }
-                let html = `<div style="font-weight:bold;margin-bottom:4px;">${timeText}${songText}</div>`;
-                if (r) {
-                    params.forEach(p => {
-                        if (p.value === null || p.value === undefined) return;
-                        html += `<div>${p.marker} ${p.seriesName}：${p.value}</div>`;
-                    });
-                }
-                return html;
-            }
-        },
-        grid: { left: '2%', right: '5%', bottom: '12%', top: '8%', containLabel: true },
-        xAxis: {
-            type: 'category',
-            boundaryGap: false,
-            data: times,
-            axisLabel: {
-                interval: range === '3d' ? 'auto' : 1,
-                fontSize: 10,
-                color: '#888',
-                rotate: 45,
-            },
-            axisLine: { lineStyle: { color: '#f0d6e4' } },
-        },
-        yAxis: yAxisOpt,
-        series: series,
-    }, true);
-    chartInst.resize();
-}
-
 function loadCsv(url) {
     return new Promise((resolve) => {
         Papa.parse(url + '?t=' + new Date().getTime(), {
@@ -1317,9 +1410,6 @@ const chartConfig = {
     dailyScore:  { chart: chartDaily,  legend: 'dailyLegend',  field: '得分', y: 1, mode: 'daily',  rows: () => dailyRowsCache },
 };
 
-// 注意：rankChartConfig 已移除，因为不再有 TOP1/2/3 图表
-const rankChartConfig = {};  // 空对象，保留变量以便 renderChartByKey 不报错
-
 function renderChartByKey(key) {
     if (chartConfig[key]) {
         const cfg = chartConfig[key];
@@ -1331,11 +1421,6 @@ function renderChartByKey(key) {
             range = chartState[key];
         }
         renderChart(cfg.rows(), cfg.chart, cfg.legend, cfg.field, cfg.y, range, cfg.mode, autoY);
-    } else if (rankChartConfig[key]) {
-        // 不会走到这里，但保留逻辑完整性
-        const cfg = rankChartConfig[key];
-        const range = key.startsWith('daily') ? 'today' : chartState[key];
-        renderRankChart(cfg.rows(), cfg.chart, cfg.legend, cfg.rank, range, cfg.mode);
     }
 }
 
@@ -1357,11 +1442,20 @@ function updateDailyDateLabels() {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    renderDailyRecentTable(dailyRows, 'dailyTableBody');
-    renderWeeklyTenDayTable(weeklyRows, 'weeklyTableBody');
+    // 渲染表格：总分 + 三个维度
+    // 周榜
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyTableBody', '得分');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyHeatTableBody', '播放热度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklySalesTableBody', '畅销度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyRecommendTableBody', '推荐度');
+
+    // 日榜
+    renderDailyRecentTable(dailyRows, 'dailyTableBody', '得分');
+    renderDailyRecentTable(dailyRows, 'dailyHeatTableBody', '播放热度');
+    renderDailyRecentTable(dailyRows, 'dailySalesTableBody', '畅销度');
+    renderDailyRecentTable(dailyRows, 'dailyRecommendTableBody', '推荐度');
 
     Object.keys(chartConfig).forEach(key => renderChartByKey(key));
-    // rankChartConfig 为空，所以不会渲染多余图表
 
     allCharts.forEach(c => c.resize());
 
