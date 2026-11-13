@@ -652,6 +652,16 @@ function renderSongRadarChart() {
                 areaStyle: { color: 'rgba(234,54,144,0.25)' },
                 lineStyle: { color: '#ea3690', width: 2 },
                 itemStyle: { color: '#ea3690' },
+                label: {
+                    show: true,
+                    position: 'top',
+                    color: '#ea3690',
+                    fontWeight: 'bold',
+                    fontSize: 12,
+                    formatter: function(params) {
+                        return params.value;
+                    }
+                }
             }],
         }],
     }, true);

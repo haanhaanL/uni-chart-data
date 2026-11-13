@@ -9,6 +9,7 @@
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="common.css">
 <style>
+    body::after { content: none; }
     .score-row {
         display: flex; flex-wrap: wrap; gap: 12px; width: 100%;
         margin-bottom: 12px; align-items: flex-start;
@@ -89,90 +90,6 @@
                     </div>
                     <div class="chart-legend-text" id="dailyLegend"></div>
                     <div class="chart-wrapper-flex" id="chartDaily"></div>
-                </div>
-            </div>
-        </div>
-
-        <div class="dim-row">
-            <div class="dim-card">
-                <div class="title">日榜 · 播放热度</div>
-                <div class="table-scroll-box">
-                    <table class="recent-table">
-                        <colgroup>
-                            <col style="width: 10%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th rowspan="2">时间</th>
-                                <th colspan="2">1</th>
-                                <th colspan="2">2</th>
-                                <th colspan="2">3</th>
-                            </tr>
-                            <tr>
-                                <th>歌名-歌手</th><th>热度 / 增幅</th>
-                                <th>歌名-歌手</th><th>热度 / 增幅</th>
-                                <th>歌名-歌手</th><th>热度 / 增幅</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailyHeatTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="dim-card">
-                <div class="title">日榜 · 畅销度</div>
-                <div class="table-scroll-box">
-                    <table class="recent-table">
-                        <colgroup>
-                            <col style="width: 10%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th rowspan="2">时间</th>
-                                <th colspan="2">1</th>
-                                <th colspan="2">2</th>
-                                <th colspan="2">3</th>
-                            </tr>
-                            <tr>
-                                <th>歌名-歌手</th><th>畅销度 / 增幅</th>
-                                <th>歌名-歌手</th><th>畅销度 / 增幅</th>
-                                <th>歌名-歌手</th><th>畅销度 / 增幅</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailySalesTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-            <div class="dim-card">
-                <div class="title">日榜 · 推荐度</div>
-                <div class="table-scroll-box">
-                    <table class="recent-table">
-                        <colgroup>
-                            <col style="width: 10%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                            <col style="width: 20%;"><col style="width: 15%;">
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th rowspan="2">时间</th>
-                                <th colspan="2">1</th>
-                                <th colspan="2">2</th>
-                                <th colspan="2">3</th>
-                            </tr>
-                            <tr>
-                                <th>歌名-歌手</th><th>推荐度 / 增幅</th>
-                                <th>歌名-歌手</th><th>推荐度 / 增幅</th>
-                                <th>歌名-歌手</th><th>推荐度 / 增幅</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dailyRecommendTableBody"></tbody>
-                    </table>
                 </div>
             </div>
         </div>
@@ -524,9 +441,6 @@ let dailyChartRange = 'today';
     document.getElementById('content').style.display = 'block';
 
     renderDailyRecentTable(dailyRowsCache, 'dailyTableBody', '得分');
-    renderDailyRecentTable(dailyRowsCache, 'dailyHeatTableBody', '播放热度');
-    renderDailyRecentTable(dailyRowsCache, 'dailySalesTableBody', '畅销度');
-    renderDailyRecentTable(dailyRowsCache, 'dailyRecommendTableBody', '推荐度');
 
     renderDailyChart(dailyRowsCache, dailyChartRange);
 
