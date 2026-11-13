@@ -182,36 +182,16 @@
         margin: 0 8px 4px 8px;
     }
 
-    /* 新增：三个维度表格的容器，复用 score-table-col 的卡片样式 */
-    .dim-table-col {
-        flex: 1 1 100%;
-        min-width: 0;
-        margin-bottom: 12px;
-    }
-    .dim-table-col .card {
-        height: 420px;
-        display: flex; flex-direction: column;
-        overflow: hidden;
-    }
-    .dim-table-col .table-scroll-box {
-        width: 100%;
-        overflow-x: auto; overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        flex: 1 1 auto; min-height: 0;
-        display: flex; flex-direction: column;
-    }
-    .dim-table-col .table-scroll-box::-webkit-scrollbar { display: none; }
-
-    /* 关键：三个维度表格单行布局，不滚动 */
+    /* 三个维度表格：一行两个 */
     .dim-row {
         display: flex;
-        flex-wrap: nowrap;
+        flex-wrap: wrap;
         gap: 12px;
         width: 100%;
         margin-bottom: 12px;
     }
     .dim-row .dim-card {
-        flex: 1 1 0;
+        flex: 1 1 calc(50% - 6px);
         min-width: 0;
         background: white;
         border-radius: 12px;
@@ -296,7 +276,7 @@
         background-color: #ffffff !important;
     }
     .dim-row .dim-card .recent-table .song-cell {
-        max-width: 90px;
+        max-width: 100px;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -320,9 +300,7 @@
         .recent-table th, .recent-table td { padding: 6px 4px; }
         .recent-table .song-cell { max-width: 150px; }
 
-        /* 小屏时维度表格仍保持单行，但缩小字体和间距 */
-        .dim-row { flex-wrap: nowrap; gap: 6px; }
-        .dim-row .dim-card { height: 360px; }
+        .dim-row .dim-card { flex: 1 1 100%; height: 360px; }
         .dim-row .dim-card .recent-table { font-size: 9px; }
         .dim-row .dim-card .recent-table th,
         .dim-row .dim-card .recent-table td { padding: 4px 2px; }
@@ -379,14 +357,14 @@
                 </div>
                 <div class="score-chart-col">
                     <div class="card">
-                        <div class="title">周榜 · 近十天总分</div>
+                        <div class="title">周榜 · 本周总分（周一至周日）</div>
                         <div class="chart-legend-text" id="weeklyLegend"></div>
                         <div class="chart-wrapper-flex" id="chartWeekly"></div>
                     </div>
                 </div>
             </div>
 
-            <!-- 周榜三个维度表格：单行并排 -->
+            <!-- 周榜三个维度表格：一行两个 -->
             <div class="dim-row">
                 <div class="dim-card">
                     <div class="title">周榜 · 播放热度</div>
@@ -520,7 +498,7 @@
                 </div>
             </div>
 
-            <!-- 日榜三个维度表格：单行并排 -->
+            <!-- 日榜三个维度表格：一行两个 -->
             <div class="dim-row">
                 <div class="dim-card">
                     <div class="title">日榜 · 播放热度</div>
@@ -933,7 +911,115 @@ function findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey) {
     return list[list.length - 1] || null;
 }
 
+/* ------- 新增：本周（周一~周日）日期工具 ------- */
+function getMondayOfWeek(d) {
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const day = date.getDay(); // 0=周日
+    const diff = day === 0 ? -6 : 1 - day;
+    date.setDate(date.getDate() + diff);
+    return date;
+}
+
+function getWeekDatesForChart() {
+    const effectiveToday = getTodayDateForDaily();
+    const monday = getMondayOfWeek(effectiveToday);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+    }
+    return days;
+}
+
+function buildWeeklyChartAxis(rows) {
+    // 本周：周一~周日，每天取次日 00:06（或当天最后一条）
+    const effectiveToday = getTodayDateForDaily();
+    const monday = getMondayOfWeek(effectiveToday);
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(monday);
+        d.setDate(d.getDate() + i);
+        days.push(d);
+    }
+
+    const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
+    const rowByKey = {};
+    const dayRowsMap = {};
+    allSorted.forEach(r => {
+        const t = parseTime(r['时间']);
+        if (!t) return;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        rowByKey[key] = r;
+
+        const eff = new Date(t);
+        if (t.getHours() === 0 && t.getMinutes() < 10) {
+            eff.setDate(eff.getDate() - 1);
+        }
+        const dayKey = fmtDateKey(eff);
+        if (!dayRowsMap[dayKey]) dayRowsMap[dayKey] = [];
+        dayRowsMap[dayKey].push(r);
+    });
+
+    const rowsByColumn = [];
+    const times = [];
+    const fullTimes = [];
+
+    days.forEach(d => {
+        const dayKey = fmtDateKey(d);
+        const nextDay = new Date(d);
+        nextDay.setDate(nextDay.getDate() + 1);
+        const nextKey = fmtDateKey(nextDay);
+
+        const row = findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey);
+        if (row) {
+            const rowCopy = { ...row };
+            rowCopy.__actualLabel = row['时间'] || '';
+            rowsByColumn.push(rowCopy);
+        } else {
+            rowsByColumn.push(null);
+        }
+
+        const weekLabels = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+        const idx = (d.getDay() + 6) % 7; // 周一=0
+        const label = `${weekLabels[idx]} ${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        times.push(label);
+        fullTimes.push(label);
+    });
+
+    return { rowsByColumn, times, fullTimes };
+}
+
+function calcWeeklyYRangeForChart(rows) {
+    const { rowsByColumn } = buildWeeklyChartAxis(rows);
+    let min = Infinity, max = -Infinity;
+    rowsByColumn.forEach(r => {
+        if (!r) return;
+        for (let rank = 1; rank <= 3; rank++) {
+            const s = r[`第${rank}名得分`] || '';
+            const v = parseFloat(s);
+            if (!isNaN(v)) {
+                if (v < min) min = v;
+                if (v > max) max = v;
+            }
+        }
+    });
+    if (!isFinite(min) || !isFinite(max)) return { min: undefined, max: 100 };
+    const pad = Math.max((max - min) * 0.08, 1);
+    let lo = Math.floor((min - pad) / 5) * 5;
+    let hi = Math.ceil((max + pad) / 5) * 5;
+    if (hi > 100) hi = 100;
+    if (hi <= lo) hi = lo + 5;
+    if (lo < 0) lo = 0;
+    return { min: lo, max: hi };
+}
+
 function buildAxis(rows, range) {
+    // range: 'weekly' 时使用本周周一到周日
+    if (range === 'weekly') {
+        return buildWeeklyChartAxis(rows);
+    }
+
     const allSorted = [...rows].sort((a, b) => (a['时间'] || '').localeCompare(b['时间'] || ''));
     const now = new Date();
     let rowsByColumn = [];
@@ -1179,21 +1265,8 @@ function buildAxis(rows, range) {
 
 function calcScoreYRange(rows, mode, range) {
     if (mode === 'weekly') {
-        if (range === '10d0') {
-            const { rowsByColumn } = buildAxis(rows, range);
-            let min = Infinity;
-            rowsByColumn.forEach(r => {
-                if (!r) return;
-                for (let rank = 1; rank <= 3; rank++) {
-                    const s = r[`第${rank}名得分`] || '';
-                    const v = parseFloat(s);
-                    if (!isNaN(v) && v < min) min = v;
-                }
-            });
-            if (!isFinite(min)) return { min: undefined, max: 100 };
-            let lo = Math.floor((min - 1) / 5) * 5;
-            if (lo > 95) lo = 95;
-            return { min: lo, max: 100 };
+        if (range === 'weekly') {
+            return calcWeeklyYRangeForChart(rows);
         }
     }
 
@@ -1245,7 +1318,7 @@ function calcScoreYRange(rows, mode, range) {
 
     let ranges;
     if (mode === 'weekly') {
-        ranges = ['10d0'];
+        ranges = ['weekly'];
     } else {
         ranges = [range || 'today'];
     }
@@ -1393,7 +1466,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                 let html = `<div style="font-weight:bold;margin-bottom:4px;">${label}</div>`;
 
                 if (r) {
-                    if ((range === '7d0' || range === '10d0') && r.__actualLabel) {
+                    if ((range === '7d0' || range === '10d0' || range === 'weekly') && r.__actualLabel) {
                         html += `<div style="font-size:11px;color:#999;margin-bottom:2px;">`
                               + `实际：${r.__actualLabel}`
                               + `</div>`;
@@ -1404,7 +1477,7 @@ function renderChart(rows, chartInst, legendId, field, yInterval, range, mode, a
                         .sort((a, b) => b.value - a.value);
 
                     const useTableDelta = (r.__tableDelta !== undefined && r.__tableDelta !== null);
-                    const hideDelta = (mode === 'daily' && range === '7d0');
+                    const hideDelta = (mode === 'daily' && range === '7d0') || range === 'weekly';
 
                     sorted.forEach(p => {
                         let text = '';
@@ -1497,7 +1570,7 @@ let dailyRowsCache = [];
 let weeklyRowsCache = [];
 
 const chartState = {
-    weeklyScore: '10d0',
+    weeklyScore: 'weekly',
     dailyScore: 'today',
 };
 
