@@ -315,19 +315,12 @@ function findBaseRecord(records, mode) {
     let rangeStart;
     let rangeEnd;
 
-    if (mode === 'weekly') {
-        const monday = getMondayOfWeek(effectiveToday);
-        baseKey = `${fmtDateKey(monday)} 00:16`;
-        rangeStart = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate()).getTime();
-        const nextMonday = new Date(monday);
-        nextMonday.setDate(nextMonday.getDate() + 7);
-        rangeEnd = new Date(nextMonday.getFullYear(), nextMonday.getMonth(), nextMonday.getDate()).getTime();
-    } else {
-        baseKey = `${fmtDateKey(effectiveToday)} 00:16`;
-        rangeStart = new Date(effectiveToday.getFullYear(), effectiveToday.getMonth(), effectiveToday.getDate()).getTime();
-        rangeEnd = rangeStart + 24 * 60 * 60 * 1000;
-    }
+    // 周榜和日榜都用当天 00:16 作为基准
+    baseKey = `${fmtDateKey(effectiveToday)} 00:16`;
+    rangeStart = new Date(effectiveToday.getFullYear(), effectiveToday.getMonth(), effectiveToday.getDate()).getTime();
+    rangeEnd = rangeStart + 24 * 60 * 60 * 1000;
 
+    // 1. 精确匹配当天 00:16
     for (const r of records) {
         const t = parseTime(r.time);
         if (!t) continue;
@@ -335,6 +328,7 @@ function findBaseRecord(records, mode) {
         if (key === baseKey) return r;
     }
 
+    // 2. 兜底：当天 00:16 之后最近一条
     const baseTime = parseTime(baseKey.replace(' ', 'T')).getTime();
     let fallback = null;
     for (const r of records) {
