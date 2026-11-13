@@ -19,6 +19,7 @@
         overflow: hidden;
         background: #faf7f9;
         font-family: sans-serif;
+        padding: 0;
     }
 
     .container {
@@ -28,6 +29,7 @@
         margin: 0 auto;
         padding: 8px 8px 0;
         box-sizing: border-box;
+        min-height: 0;          /* 覆盖 common.css 的 min-height */
     }
 
     .tab-bar {
@@ -104,7 +106,6 @@
         });
     });
 
-    // 读取两个 CSV，取最大时间显示
     function loadCsvTime(url) {
         return new Promise((resolve) => {
             Papa.parse(url + '?t=' + new Date().getTime(), {
