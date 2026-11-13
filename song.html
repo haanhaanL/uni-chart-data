@@ -196,7 +196,7 @@
                 <div class="title">分数趋势</div>
                 <div class="range-tabs" data-chart="songRange">
                     <button class="range-btn active" data-range="weekly">周榜</button>
-                    <button class="range-btn" data-range="today">今天</button>
+                    <button class="range-btn" data-range="today">日榜</button>
                 </div>
                 <div class="chart-legend-text" id="songLineLegend"></div>
                 <div class="chart-wrapper-flex" id="chartSongLine"></div>
@@ -242,6 +242,22 @@ function formatSongTime(timeStr) {
     return `${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')} ${m[4].padStart(2, '0')}:${m[5].padStart(2, '0')}`;
 }
 
+/* 读一行里该歌曲的官方增幅（如果 CSV 有该字段） */
+function getOfficialDeltaByRow(r, rank, field) {
+    const keyMap = {
+        '得分': '官方增幅',
+        '播放热度': '播放热度官方增幅',
+        '畅销度': '畅销度官方增幅',
+        '推荐度': '推荐度官方增幅',
+    };
+    const col = keyMap[field];
+    if (!col) return null;
+    const raw = r[`第${rank}名${col}`];
+    if (raw === undefined || raw === null || raw === '') return null;
+    const v = parseFloat(raw);
+    return isNaN(v) ? null : v;
+}
+
 function extractSongRecords(rows) {
     const records = [];
     rows.forEach(r => {
@@ -253,6 +269,8 @@ function extractSongRecords(rows) {
                 records.push({
                     time: r['时间'],
                     ts: t.getTime(),
+                    rank,
+                    rawRow: r,
                     得分: parseFloat(r[`第${rank}名得分`]) || null,
                     播放热度: parseFloat(r[`第${rank}名播放热度`]) || null,
                     畅销度: parseFloat(r[`第${rank}名畅销度`]) || null,
@@ -268,20 +286,30 @@ function extractSongRecords(rows) {
     for (let i = 0; i < records.length; i++) {
         const cur = records[i];
         const prev = i > 0 ? records[i - 1] : null;
+        const t = new Date(cur.ts);
+        const isStart = t.getHours() === 0 && t.getMinutes() === 16;
+
         const item = { ...cur };
+
         ['得分', '播放热度', '畅销度', '推荐度'].forEach(k => {
             let delta = null;
-            if (prev && cur[k] !== null && prev[k] !== null) {
+
+            if (isStart) {
+                // 00:16 只读官方增幅，缺失就是 null，不回退
+                const official = getOfficialDeltaByRow(cur.rawRow, cur.rank, k);
+                delta = official;
+            } else if (prev && cur[k] !== null && prev[k] !== null) {
                 delta = cur[k] - prev[k];
             }
+
             item[k + '_delta'] = delta;
         });
+
         result.push(item);
     }
     return result;
 }
 
-/* 基准点：周一 00:16（周榜）/ 当天 00:16（日榜），缺失时用范围内最早一条兜底 */
 function findBaseRecord(records, mode) {
     const effectiveToday = getTodayDateForDaily();
     let baseKey;
@@ -301,7 +329,6 @@ function findBaseRecord(records, mode) {
         rangeEnd = rangeStart + 24 * 60 * 60 * 1000;
     }
 
-    // 1. 精确匹配 00:16
     for (const r of records) {
         const t = parseTime(r.time);
         if (!t) continue;
@@ -309,7 +336,6 @@ function findBaseRecord(records, mode) {
         if (key === baseKey) return r;
     }
 
-    // 2. 兜底：00:16 之后最近一条（范围内）
     const baseTime = parseTime(baseKey.replace(' ', 'T')).getTime();
     let fallback = null;
     for (const r of records) {
@@ -369,7 +395,6 @@ function renderSongTable(records, tbodyId) {
     tbody.innerHTML = html;
 }
 
-/* 今天：从 00:16 到次日 00:06，整点取 HH:06 */
 function buildTodayRecords(records) {
     const effectiveToday = getTodayDateForDaily();
     const baseKey = fmtDateKey(effectiveToday);
@@ -377,25 +402,23 @@ function buildTodayRecords(records) {
     nextDay.setDate(nextDay.getDate() + 1);
     const nextKey = fmtDateKey(nextDay);
 
-    const map = {};
+    const mapByHHMM = {};
     records.forEach(r => {
         const t = parseTime(r.time);
-        if (!t || t.getMinutes() !== 6) return;
-        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:06`;
-        if (!map[key]) map[key] = r;
+        if (!t) return;
+        const hhmm = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        if (!mapByHHMM[hhmm]) mapByHHMM[hhmm] = r;
     });
 
     const result = [];
-    const firstKey = `${baseKey} 00:16`;
-    result.push(map[firstKey] || null);
+    result.push(mapByHHMM['00:16'] || null);
 
     for (let h = 1; h <= 23; h++) {
-        const key = `${baseKey} ${String(h).padStart(2, '0')}:06`;
-        result.push(map[key] || null);
+        const key = `${String(h).padStart(2, '0')}:06`;
+        result.push(mapByHHMM[key] || null);
     }
 
-    const lastKey = `${nextKey} 00:06`;
-    result.push(map[lastKey] || null);
+    result.push(mapByHHMM['00:06'] || null);
 
     return result;
 }
@@ -409,7 +432,65 @@ function getAxisLabelsToday() {
     return labels;
 }
 
-/* 周榜：本周一到周日，每日取次日 00:06 */
+/* 今天某点的涨幅：
+   - 00:16 读官方增幅
+   - 00:06 与前一日的 23:06 比
+   - 次日00:06 与当天 23:06 比
+   - 其他 HH:06 与 (HH-1):06 比
+*/
+function calcTodayPointDelta(records, targetHHMM, field) {
+    const effectiveToday = getTodayDateForDaily();
+    const baseKey = fmtDateKey(effectiveToday);
+    const nextDay = new Date(effectiveToday);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextKey = fmtDateKey(nextDay);
+
+    const byFullKey = {};
+    records.forEach(r => {
+        const t = parseTime(r.time);
+        if (!t) return;
+        const key = `${fmtDateKey(t)} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`;
+        if (!byFullKey[key]) byFullKey[key] = r;
+    });
+
+    let curFullKey;
+    if (targetHHMM === '次日00:06') {
+        curFullKey = `${nextKey} 00:06`;
+    } else {
+        curFullKey = `${baseKey} ${targetHHMM}`;
+    }
+
+    const cur = byFullKey[curFullKey];
+    if (!cur || cur[field] === null) return null;
+
+    if (targetHHMM === '00:16') {
+        const official = getOfficialDeltaByRow(cur.rawRow, cur.rank, field);
+        return official !== null ? official : null;
+    }
+
+    if (targetHHMM === '00:06') {
+        const prevDay = new Date(effectiveToday);
+        prevDay.setDate(prevDay.getDate() - 1);
+        const prevKey = `${fmtDateKey(prevDay)} 23:06`;
+        const prev = byFullKey[prevKey];
+        if (!prev || prev[field] === null) return null;
+        return cur[field] - prev[field];
+    }
+
+    if (targetHHMM === '次日00:06') {
+        const prevKey = `${baseKey} 23:06`;
+        const prev = byFullKey[prevKey];
+        if (!prev || prev[field] === null) return null;
+        return cur[field] - prev[field];
+    }
+
+    const [h] = targetHHMM.split(':').map(Number);
+    const prevHHMM = `${String(h - 1).padStart(2, '0')}:06`;
+    const prev = byFullKey[`${baseKey} ${prevHHMM}`];
+    if (!prev || prev[field] === null) return null;
+    return cur[field] - prev[field];
+}
+
 function buildWeeklyPoints(records) {
     const effectiveToday = getTodayDateForDaily();
     const monday = getMondayOfWeek(effectiveToday);
@@ -456,15 +537,61 @@ function buildWeeklyPoints(records) {
     return { points, times };
 }
 
-/* ========== 折线图 ========== */
+function calcWeeklyDayChangeForPoint(records, dayDate) {
+    const dayStart = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime();
+    const nextDay = new Date(dayDate);
+    nextDay.setDate(nextDay.getDate() + 1);
+    const nextStart = new Date(nextDay.getFullYear(), nextDay.getMonth(), nextDay.getDate()).getTime();
+
+    const startTs = dayStart + 16 * 60 * 1000;
+    const endTs = nextStart + 6 * 60 * 1000;
+
+    const inRange = records
+        .filter(r => r.ts >= startTs && r.ts <= endTs)
+        .sort((a, b) => a.ts - b.ts);
+
+    if (!inRange.length) return {};
+
+    const head = inRange[0];
+    const tail = inRange[inRange.length - 1];
+
+    const result = {};
+    ['得分', '播放热度', '畅销度', '推荐度'].forEach(k => {
+        let delta = null;
+        if (head[k] !== null && tail[k] !== null) {
+            delta = tail[k] - head[k];
+        }
+        result[k] = delta;
+    });
+    return result;
+}
+
 function renderSongLineChart() {
     let points = [];
     let times = [];
+    let weeklyDayChanges = null;
 
     if (songLineRange === 'weekly') {
         const w = buildWeeklyPoints(songWeeklyRecords);
         points = w.points;
         times = w.times;
+
+        const effectiveToday = getTodayDateForDaily();
+        const monday = getMondayOfWeek(effectiveToday);
+        weeklyDayChanges = times.map(label => {
+            const [mm, dd] = label.split('-').map(Number);
+            let dayDate = null;
+            for (let i = 0; i < 7; i++) {
+                const cand = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate());
+                cand.setDate(cand.getDate() + i);
+                if (cand.getMonth() + 1 === mm && cand.getDate() === dd) {
+                    dayDate = cand;
+                    break;
+                }
+            }
+            if (!dayDate) return {};
+            return calcWeeklyDayChangeForPoint(songWeeklyRecords, dayDate);
+        });
     } else {
         const slots = buildTodayRecords(songDailyRecords);
         points = slots;
@@ -510,6 +637,7 @@ function renderSongLineChart() {
         const pad = Math.max((max - min) * 0.1, 1);
         yMin = Math.floor((min - pad) / 5) * 5;
         yMax = Math.ceil((max + pad) / 5) * 5;
+        if (yMax > 100) yMax = 100;
         if (yMax <= yMin) yMax = yMin + 5;
         if (yMin < 0) yMin = 0;
     }
@@ -536,13 +664,30 @@ function renderSongLineChart() {
                     const field = LINE_FIELDS.find(f => f.label === p.seriesName);
                     if (!field) return;
                     const val = r[field.key];
-                    const delta = r[field.key + '_delta'];
+
                     let deltaText = '-';
                     let deltaColor = '#999';
-                    if (delta !== null && delta !== undefined && !isNaN(delta)) {
-                        deltaText = (delta > 0 ? '+' : '') + delta.toFixed(2);
-                        deltaColor = delta > 0 ? '#ea3690' : '#999';
+
+                    if (songLineRange === 'weekly' && weeklyDayChanges && weeklyDayChanges[i]) {
+                        const d = weeklyDayChanges[i][field.key];
+                        if (d !== null && d !== undefined && !isNaN(d)) {
+                            deltaText = (d > 0 ? '+' : '') + d.toFixed(2);
+                            deltaColor = d > 0 ? '#ea3690' : '#999';
+                        }
+                    } else if (songLineRange === 'today') {
+                        const d = calcTodayPointDelta(songDailyRecords, times[i], field.key);
+                        if (d !== null && d !== undefined && !isNaN(d)) {
+                            deltaText = (d > 0 ? '+' : '') + d.toFixed(2);
+                            deltaColor = d > 0 ? '#ea3690' : '#999';
+                        }
+                    } else {
+                        const delta = r[field.key + '_delta'];
+                        if (delta !== null && delta !== undefined && !isNaN(delta)) {
+                            deltaText = (delta > 0 ? '+' : '') + delta.toFixed(2);
+                            deltaColor = delta > 0 ? '#ea3690' : '#999';
+                        }
                     }
+
                     html += `<div style="display:flex;align-items:center;gap:12px;min-width:230px;line-height:20px;">`
                           + `<span style="display:flex;align-items:center;gap:4px;flex:1;min-width:0;">`
                           + `<span>${p.marker}</span>`
@@ -580,7 +725,6 @@ function renderSongLineChart() {
     chartSongLine.resize();
 }
 
-/* ========== 雷达图 ========== */
 function renderSongRadarChart() {
     const records = songRadarRange === 'weekly' ? songWeeklyRecords : songDailyRecords;
 
