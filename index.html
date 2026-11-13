@@ -202,6 +202,108 @@
     }
     .dim-table-col .table-scroll-box::-webkit-scrollbar { display: none; }
 
+    /* 关键：三个维度表格单行布局，不滚动 */
+    .dim-row {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 12px;
+        width: 100%;
+        margin-bottom: 12px;
+    }
+    .dim-row .dim-card {
+        flex: 1 1 0;
+        min-width: 0;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(234,54,144,0.08);
+        border: 1px solid rgba(234,54,144,0.10);
+        padding: 12px 0;
+        display: flex;
+        flex-direction: column;
+        height: 420px;
+        overflow: hidden;
+    }
+    .dim-row .dim-card .title { margin: 5px 0 8px 0; }
+    .dim-row .dim-card .table-scroll-box {
+        width: 100%;
+        overflow-x: auto;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+    }
+    .dim-row .dim-card .table-scroll-box::-webkit-scrollbar { display: none; }
+    .dim-row .dim-card .recent-table {
+        width: 100%;
+        height: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 11px;
+        table-layout: fixed;
+        min-width: 0;
+    }
+    .dim-row .dim-card .recent-table th,
+    .dim-row .dim-card .recent-table td {
+        padding: 6px 3px;
+        text-align: center;
+        border-bottom: 1px solid #f3e6ee;
+        white-space: nowrap;
+        min-height: 32px;
+        line-height: 1.4;
+    }
+    .dim-row .dim-card .recent-table th {
+        background-color: #ea3690 !important;
+        color: #ffffff;
+        font-weight: bold;
+        font-size: 10px;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 1px 0 #f3e6ee;
+    }
+    .dim-row .dim-card .recent-table thead tr:first-child th:first-child {
+        position: sticky !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: 20 !important;
+        background-color: #ea3690 !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+    .dim-row .dim-card .recent-table td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        color: #555;
+        background-color: #ffffff;
+    }
+    .dim-row .dim-card .recent-table tbody tr:nth-child(even) td:first-child {
+        background-color: #fdf7fa;
+    }
+    .dim-row .dim-card .recent-table tbody tr:nth-child(even) {
+        background-color: #ea36900a;
+    }
+    .dim-row .dim-card .recent-table tbody tr.placeholder-row {
+        background-color: transparent !important;
+    }
+    .dim-row .dim-card .recent-table tbody tr.placeholder-row td {
+        border-bottom-color: transparent;
+    }
+    .dim-row .dim-card .recent-table tbody tr.placeholder-row td:first-child {
+        background-color: #ffffff !important;
+    }
+    .dim-row .dim-card .recent-table .song-cell {
+        max-width: 90px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-align: left;
+        color: #555;
+    }
+
     @media (max-width: 900px) {
         .score-row { flex-direction: column; align-items: stretch; }
         .score-table-col, .score-chart-col {
@@ -218,7 +320,13 @@
         .recent-table th, .recent-table td { padding: 6px 4px; }
         .recent-table .song-cell { max-width: 150px; }
 
-        .dim-table-col .card { height: auto; max-height: 360px; }
+        /* 小屏时维度表格仍保持单行，但缩小字体和间距 */
+        .dim-row { flex-wrap: nowrap; gap: 6px; }
+        .dim-row .dim-card { height: 360px; }
+        .dim-row .dim-card .recent-table { font-size: 9px; }
+        .dim-row .dim-card .recent-table th,
+        .dim-row .dim-card .recent-table td { padding: 4px 2px; }
+        .dim-row .dim-card .recent-table .song-cell { max-width: 70px; }
     }
 </style>
 </head>
@@ -278,93 +386,87 @@
                 </div>
             </div>
 
-            <!-- 新增：周榜三个维度表格 -->
-            <div class="score-row">
-                <div class="dim-table-col">
-                    <div class="card">
-                        <div class="title">周榜 · 播放热度</div>
-                        <div class="table-scroll-box">
-                            <table class="recent-table">
-                                <colgroup>
-                                    <col style="width: 14%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">日期</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
-                                    </tr>
-                                    <tr>
-                                        <th>歌名-歌手</th><th>热度 / 差值</th>
-                                        <th>歌名-歌手</th><th>热度 / 差值</th>
-                                        <th>歌名-歌手</th><th>热度 / 差值</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="weeklyHeatTableBody"></tbody>
-                            </table>
-                        </div>
+            <!-- 周榜三个维度表格：单行并排 -->
+            <div class="dim-row">
+                <div class="dim-card">
+                    <div class="title">周榜 · 播放热度</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 16%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">日期</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>热度 / 差值</th>
+                                    <th>歌名-歌手</th><th>热度 / 差值</th>
+                                    <th>歌名-歌手</th><th>热度 / 差值</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weeklyHeatTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="dim-table-col">
-                    <div class="card">
-                        <div class="title">周榜 · 畅销度</div>
-                        <div class="table-scroll-box">
-                            <table class="recent-table">
-                                <colgroup>
-                                    <col style="width: 14%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">日期</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
-                                    </tr>
-                                    <tr>
-                                        <th>歌名-歌手</th><th>畅销度 / 差值</th>
-                                        <th>歌名-歌手</th><th>畅销度 / 差值</th>
-                                        <th>歌名-歌手</th><th>畅销度 / 差值</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="weeklySalesTableBody"></tbody>
-                            </table>
-                        </div>
+                <div class="dim-card">
+                    <div class="title">周榜 · 畅销度</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 16%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">日期</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                    <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                    <th>歌名-歌手</th><th>畅销度 / 差值</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weeklySalesTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="dim-table-col">
-                    <div class="card">
-                        <div class="title">周榜 · 推荐度</div>
-                        <div class="table-scroll-box">
-                            <table class="recent-table">
-                                <colgroup>
-                                    <col style="width: 14%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">日期</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
-                                    </tr>
-                                    <tr>
-                                        <th>歌名-歌手</th><th>推荐度 / 差值</th>
-                                        <th>歌名-歌手</th><th>推荐度 / 差值</th>
-                                        <th>歌名-歌手</th><th>推荐度 / 差值</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="weeklyRecommendTableBody"></tbody>
-                            </table>
-                        </div>
+                <div class="dim-card">
+                    <div class="title">周榜 · 推荐度</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 16%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">日期</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                    <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                    <th>歌名-歌手</th><th>推荐度 / 差值</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weeklyRecommendTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -418,93 +520,87 @@
                 </div>
             </div>
 
-            <!-- 新增：日榜三个维度表格 -->
-            <div class="score-row">
-                <div class="dim-table-col">
-                    <div class="card">
-                        <div class="title">日榜 · 播放热度</div>
-                        <div class="table-scroll-box">
-                            <table class="recent-table">
-                                <colgroup>
-                                    <col style="width: 14%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">时间</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
-                                    </tr>
-                                    <tr>
-                                        <th>歌名-歌手</th><th>热度 / 增幅</th>
-                                        <th>歌名-歌手</th><th>热度 / 增幅</th>
-                                        <th>歌名-歌手</th><th>热度 / 增幅</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dailyHeatTableBody"></tbody>
-                            </table>
-                        </div>
+            <!-- 日榜三个维度表格：单行并排 -->
+            <div class="dim-row">
+                <div class="dim-card">
+                    <div class="title">日榜 · 播放热度</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 16%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">时间</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>热度 / 增幅</th>
+                                    <th>歌名-歌手</th><th>热度 / 增幅</th>
+                                    <th>歌名-歌手</th><th>热度 / 增幅</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyHeatTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="dim-table-col">
-                    <div class="card">
-                        <div class="title">日榜 · 畅销度</div>
-                        <div class="table-scroll-box">
-                            <table class="recent-table">
-                                <colgroup>
-                                    <col style="width: 14%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">时间</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
-                                    </tr>
-                                    <tr>
-                                        <th>歌名-歌手</th><th>畅销度 / 增幅</th>
-                                        <th>歌名-歌手</th><th>畅销度 / 增幅</th>
-                                        <th>歌名-歌手</th><th>畅销度 / 增幅</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dailySalesTableBody"></tbody>
-                            </table>
-                        </div>
+                <div class="dim-card">
+                    <div class="title">日榜 · 畅销度</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 16%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">时间</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>畅销度 / 增幅</th>
+                                    <th>歌名-歌手</th><th>畅销度 / 增幅</th>
+                                    <th>歌名-歌手</th><th>畅销度 / 增幅</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailySalesTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
-                <div class="dim-table-col">
-                    <div class="card">
-                        <div class="title">日榜 · 推荐度</div>
-                        <div class="table-scroll-box">
-                            <table class="recent-table">
-                                <colgroup>
-                                    <col style="width: 14%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                    <col style="width: 18%;"><col style="width: 12%;">
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th rowspan="2">时间</th>
-                                        <th colspan="2">1</th>
-                                        <th colspan="2">2</th>
-                                        <th colspan="2">3</th>
-                                    </tr>
-                                    <tr>
-                                        <th>歌名-歌手</th><th>推荐度 / 增幅</th>
-                                        <th>歌名-歌手</th><th>推荐度 / 增幅</th>
-                                        <th>歌名-歌手</th><th>推荐度 / 增幅</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="dailyRecommendTableBody"></tbody>
-                            </table>
-                        </div>
+                <div class="dim-card">
+                    <div class="title">日榜 · 推荐度</div>
+                    <div class="table-scroll-box">
+                        <table class="recent-table">
+                            <colgroup>
+                                <col style="width: 16%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                                <col style="width: 18%;"><col style="width: 14%;">
+                            </colgroup>
+                            <thead>
+                                <tr>
+                                    <th rowspan="2">时间</th>
+                                    <th colspan="2">1</th>
+                                    <th colspan="2">2</th>
+                                    <th colspan="2">3</th>
+                                </tr>
+                                <tr>
+                                    <th>歌名-歌手</th><th>推荐度 / 增幅</th>
+                                    <th>歌名-歌手</th><th>推荐度 / 增幅</th>
+                                    <th>歌名-歌手</th><th>推荐度 / 增幅</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dailyRecommendTableBody"></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
