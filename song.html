@@ -196,7 +196,7 @@
                 <div class="title">分数趋势</div>
                 <div class="range-tabs" data-chart="songRange">
                     <button class="range-btn active" data-range="weekly">周榜</button>
-                    <button class="range-btn" data-range="today">今天</button>
+                    <button class="range-btn" data-range="today">日榜</button>
                 </div>
                 <div class="chart-legend-text" id="songLineLegend"></div>
                 <div class="chart-wrapper-flex" id="chartSongLine"></div>
@@ -227,7 +227,7 @@ songCharts.forEach(c => c.showLoading());
 let songWeeklyRecords = [];
 let songDailyRecords = [];
 let songLineRange = 'weekly';
-let songRadarRange = 'daily';
+let songRadarRange = 'weekly';
 
 const LINE_FIELDS = [
     { key: '得分',     label: '总分',     color: '#ea3690' },

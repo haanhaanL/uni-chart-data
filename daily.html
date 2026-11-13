@@ -106,7 +106,6 @@ function refreshDailyTopDate() {
     if (el) el.textContent = fmtDateLabel(getTodayDateForDaily());
 }
 
-/* 只保留 HH:mm */
 function formatHHMM(timeStr) {
     const m = (timeStr || '').match(/[ T](\d{1,2}):(\d{1,2})/);
     if (!m) return timeStr || '';
@@ -340,12 +339,12 @@ function renderDailyChart(rows, range) {
 
     let yMin, yMax;
     if (!isFinite(min) || !isFinite(max)) {
-        yMin = undefined; yMax = (range === 'today' ? 98 : undefined);
+        yMin = undefined; yMax = 100;
     } else {
         const pad = Math.max((max - min) * 0.08, 1);
         yMin = Math.floor((min - pad) / 5) * 5;
         yMax = Math.ceil((max + pad) / 5) * 5;
-        if (range === 'today' && yMax > 98) yMax = 98;
+        if (yMax > 100) yMax = 100;
         if (yMax <= yMin) yMax = yMin + 5;
     }
 
