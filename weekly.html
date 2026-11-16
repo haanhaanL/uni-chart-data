@@ -27,7 +27,6 @@
         height: 520px; display: flex; flex-direction: column;
     }
 
-    /* 维度表格：一行三个，日期列固定，其他列横向滑动 */
     .dim-row {
         display: flex;
         flex-wrap: wrap;
@@ -162,7 +161,7 @@
 
     <div id="content" style="display:none;">
         <div class="range-hint" style="margin-bottom:8px;">
-            每日数据按次日0:06算，当日按最新显示
+            增幅：周一取本周周一 00:26 / 其余日期取本日 00:06（无则往后最早）
         </div>
         <div class="score-row">
             <div class="score-table-col">
@@ -294,7 +293,9 @@
 const chartWeekly = echarts.init(document.getElementById('chartWeekly'));
 chartWeekly.showLoading();
 
-function renderWeeklyTenDayTable(rows, tbodyId, field) {
+/* field: 用于显示数值的列；deltaField: 用于计算增幅的列 */
+function renderWeeklyTenDayTable(rows, tbodyId, field, deltaField) {
+    const df = deltaField || field;
     const tbody = document.getElementById(tbodyId);
     if (!rows.length) {
         tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#999;">暂无数据</td></tr>';
@@ -319,6 +320,7 @@ function renderWeeklyTenDayTable(rows, tbodyId, field) {
     });
 
     const effectiveToday = getTodayDateForDaily();
+    const anchorRow = findWeekAnchorRow(rows);
     const daySummaries = [];
 
     for (let i = 9; i >= 0; i--) {
@@ -329,7 +331,7 @@ function renderWeeklyTenDayTable(rows, tbodyId, field) {
         nextDay.setDate(nextDay.getDate() + 1);
         const nextKey = fmtDateKey(nextDay);
 
-        const { delta, displayRow } = calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap);
+        const { delta, displayRow } = calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap, anchorRow, df);
         if (!displayRow) continue;
         daySummaries.push({ day: d, row: displayRow, delta });
     }
@@ -587,13 +589,12 @@ function renderWeeklyChart(rows) {
     document.getElementById('loading').style.display = 'none';
     document.getElementById('content').style.display = 'block';
 
-    renderWeeklyTenDayTable(weeklyRows, 'weeklyTableBody', '得分');
-    renderWeeklyTenDayTable(weeklyRows, 'weeklyHeatTableBody', '播放热度');
-    renderWeeklyTenDayTable(weeklyRows, 'weeklySalesTableBody', '畅销度');
-    renderWeeklyTenDayTable(weeklyRows, 'weeklyRecommendTableBody', '推荐度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyTableBody', '得分', '得分');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyHeatTableBody', '播放热度', '播放热度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklySalesTableBody', '畅销度', '畅销度');
+    renderWeeklyTenDayTable(weeklyRows, 'weeklyRecommendTableBody', '推荐度', '推荐度');
 
     renderWeeklyChart(weeklyRows);
-
 })();
 
 let resizeTimer;

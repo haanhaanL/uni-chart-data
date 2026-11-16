@@ -55,45 +55,95 @@ function findNextDay0006OrPrev(nextKey, rowByKey, dayRowsMap, dayKey) {
     return list[list.length - 1] || null;
 }
 
-function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap) {
-    const next0006 = rowByKey[`${nextKey} 00:06`];
+/* ===== 本周周一 00:26 基准行；没有则取周一 00:26 之后最早一条 ===== */
+function findWeekAnchorRow(rows) {
+    const today = getTodayDateForDaily();
+    const monday = getMondayOfWeek(today);
+    const mondayKey = fmtDateKey(monday);
+    const anchorTs = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 26, 0).getTime();
 
+    const mondayRows = rows
+        .map(r => ({ r, t: parseTime(r['时间']) }))
+        .filter(x => x.t && fmtDateKey(x.t) === mondayKey)
+        .sort((a, b) => a.t - b.t);
+
+    const exact = mondayRows.find(x => x.t.getHours() === 0 && x.t.getMinutes() === 26);
+    if (exact) return exact.r;
+
+    const after = mondayRows.find(x => x.t.getTime() >= anchorTs);
+    if (after) return after.r;
+
+    return mondayRows.length ? mondayRows[mondayRows.length - 1].r : null;
+}
+
+/* ===== 指定日期的 00:06 基准行；没有则取 00:06 之后最早一条；再没有取当天最后一条 ===== */
+function findDay0006AnchorRow(dayKey, dayRowsMap) {
+    const list = (dayRowsMap[dayKey] || [])
+        .map(r => ({ r, t: parseTime(r['时间']) }))
+        .filter(x => x.t)
+        .sort((a, b) => a.t - b.t);
+
+    const exact = list.find(x => x.t.getHours() === 0 && x.t.getMinutes() === 6);
+    if (exact) return exact.r;
+
+    const target = new Date(dayKey.replace(/-/g, '/') + ' 00:06:00').getTime();
+    const after = list.find(x => x.t.getTime() >= target);
+    if (after) return after.r;
+
+    return list.length ? list[list.length - 1].r : null;
+}
+
+/*
+ * 周榜单日增幅：
+ * - 若 dayKey 为本周周一：基准 = findWeekAnchorRow（周一 00:26，无则往后最早）
+ * - 其他日期：基准 = 本日 00:06，无则取本日 00:06 之后最早一条
+ * - 与基准行中同名歌曲的 deltaField 列作差；找不到同名歌曲则为 null
+ */
+function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap, anchorRow, deltaField) {
+    const df = deltaField || '得分';
+    const next0006 = rowByKey[`${nextKey} 00:06`];
     const dayList = (dayRowsMap[dayKey] || []).slice().sort(
         (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
     );
     const last = dayList[dayList.length - 1];
-
     const displayRow = next0006 || last || null;
+
+    // 判断是否为本周周一
+    const monday = getMondayOfWeek(getTodayDateForDaily());
+    const mondayKey = fmtDateKey(monday);
+    const isMonday = dayKey === mondayKey;
+
+    let baseRow = null;
+    if (isMonday) {
+        baseRow = anchorRow || null;
+    } else {
+        baseRow = findDay0006AnchorRow(dayKey, dayRowsMap);
+    }
 
     const delta = {};
     for (let rank = 1; rank <= 3; rank++) {
-        if (!displayRow) {
+        if (!displayRow || !baseRow) {
             delta[rank] = null;
             continue;
         }
 
-        const curScore = parseFloat(displayRow[`第${rank}名得分`]);
+        const curVal = parseFloat(displayRow[`第${rank}名${df}`]);
         const curKey = getSongKey(displayRow, rank);
 
-        if (isNaN(curScore) || !curKey) {
+        if (isNaN(curVal) || !curKey) {
             delta[rank] = null;
             continue;
         }
 
-        let firstScore = NaN;
-        for (const r of dayList) {
-            let hit = false;
-            for (let rk = 1; rk <= 3; rk++) {
-                if (getSongKey(r, rk) === curKey) {
-                    firstScore = parseFloat(r[`第${rk}名得分`]);
-                    hit = true;
-                    break;
-                }
+        let baseVal = NaN;
+        for (let rk = 1; rk <= 3; rk++) {
+            if (getSongKey(baseRow, rk) === curKey) {
+                baseVal = parseFloat(baseRow[`第${rk}名${df}`]);
+                break;
             }
-            if (hit) break;
         }
 
-        delta[rank] = !isNaN(firstScore) ? (curScore - firstScore) : null;
+        delta[rank] = !isNaN(baseVal) ? (curVal - baseVal) : null;
     }
 
     return { delta, displayRow };
