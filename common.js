@@ -76,7 +76,7 @@ function findWeekAnchorRow(rows) {
     return mondayRows.length ? mondayRows[mondayRows.length - 1].r : null;
 }
 
-/* ===== 指定日期的 00:06 基准行；没有则取 00:06 之后最早一条；再没有取当天最后一条 ===== */
+/* ===== 指定日期 00:06 基准行；没有则取 00:06 之后最早一条；再没有取当天最后一条 ===== */
 function findDay0006AnchorRow(dayKey, dayRowsMap) {
     const list = (dayRowsMap[dayKey] || [])
         .map(r => ({ r, t: parseTime(r['时间']) }))
@@ -95,12 +95,15 @@ function findDay0006AnchorRow(dayKey, dayRowsMap) {
 
 /*
  * 周榜单日增幅：
- * - 若 dayKey 为本周周一：基准 = findWeekAnchorRow（周一 00:26，无则往后最早）
- * - 其他日期：基准 = 本日 00:06，无则取本日 00:06 之后最早一条
+ * - dayKey 为本周周一：基准 = findWeekAnchorRow（周一 00:26，无则往后最早）
+ * - 其他日期：基准 = 前一天 00:06（无则取前一天 00:06 之后最早一条）
  * - 与基准行中同名歌曲的 deltaField 列作差；找不到同名歌曲则为 null
+ * - displayRow 取该日最新一条（次日 00:06 归前一天）
  */
 function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap, anchorRow, deltaField) {
     const df = deltaField || '得分';
+
+    // 该日显示行：优先次日 00:06，否则取当天最后一条
     const next0006 = rowByKey[`${nextKey} 00:06`];
     const dayList = (dayRowsMap[dayKey] || []).slice().sort(
         (a, b) => (a['时间'] || '').localeCompare(b['时间'] || '')
@@ -108,16 +111,21 @@ function calcWeeklyDayDelta(dayKey, nextKey, rowByKey, dayRowsMap, anchorRow, de
     const last = dayList[dayList.length - 1];
     const displayRow = next0006 || last || null;
 
-    // 判断是否为本周周一
     const monday = getMondayOfWeek(getTodayDateForDaily());
     const mondayKey = fmtDateKey(monday);
     const isMonday = dayKey === mondayKey;
 
     let baseRow = null;
     if (isMonday) {
+        // 周一：与本周周一 00:26 作差
         baseRow = anchorRow || null;
     } else {
-        baseRow = findDay0006AnchorRow(dayKey, dayRowsMap);
+        // 其余日期：与前一天 00:06 作差
+        const dayDate = new Date(dayKey.replace(/-/g, '/') + ' 00:00:00');
+        const prevDate = new Date(dayDate);
+        prevDate.setDate(prevDate.getDate() - 1);
+        const prevKey = fmtDateKey(prevDate);
+        baseRow = findDay0006AnchorRow(prevKey, dayRowsMap);
     }
 
     const delta = {};
