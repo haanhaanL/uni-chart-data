@@ -74,10 +74,15 @@ def fetch_daily_top3(client):
     resp.raise_for_status()
     items = resp.json()["data"]["data"][:3]
     result = []
+    now = datetime.now(BJT)
+    is_early_daily = (now.hour, now.minute) >= (0, 26) and (now.hour, now.minute) <= (5, 56)
     for it in items:
         info = it.get("info") or {}
         uid = it.get("itemId")
         play, sales, recommend = fetch_daily_detail_indices(client, uid)
+        change = it.get("incrScore", "")
+        if is_early_daily and (change is None or str(change).strip() == ""):
+            change = "0.00"
         result.append({
             "name": info.get("trackNameShow", ""),
             "singer": info.get("singerName", ""),
@@ -85,7 +90,7 @@ def fetch_daily_top3(client):
             "play": play,
             "sales": sales,
             "recommend": recommend,
-            "change": it.get("incrScore", ""),
+            "change": change,
         })
     return result
 
